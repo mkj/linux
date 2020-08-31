@@ -25,6 +25,14 @@ enum i2c_mode {
 	I2C_SLAVE,
 };
 
+
+#ifndef I2C_MAX_STANDARD_MODE_FREQ
+#define I2C_MAX_STANDARD_MODE_FREQ	100000
+#define I2C_MAX_FAST_MODE_FREQ		400000
+#define I2C_MAX_FAST_MODE_PLUS_FREQ	1000000
+#endif
+
+
 /*
  * External I2C Interface driver xfer indication values, which indicate status
  * of the bus.
