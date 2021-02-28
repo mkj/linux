@@ -5,20 +5,14 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/nuvoton,npcm7xx-clock.h>
 #include <dt-bindings/reset/nuvoton,npcm7xx-reset.h>
-#include <dt-bindings/gpio/gpio.h>
 
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
 	interrupt-parent = <&gic>;
 
-	memory {
-		device_type = "memory";
-		reg = <0 0>;
-	};
-
 	/* external reference clock */
-	clk_refclk: clk-refclk {
+	clk_refclk: clk_refclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <25000000>;
@@ -26,7 +20,7 @@
 	};
 
 	/* external reference clock for cpu. float in normal operation */
-	clk_sysbypck: clk-sysbypck {
+	clk_sysbypck: clk_sysbypck {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <800000000>;
@@ -34,7 +28,7 @@
 	};
 
 	/* external reference clock for MC. float in normal operation */
-	clk_mcbypck: clk-mcbypck {
+	clk_mcbypck: clk_mcbypck {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <800000000>;
@@ -42,7 +36,7 @@
 	};
 
 	 /* external clock signal rg1refck, supplied by the phy */
-	clk_rg1refck: clk-rg1refck {
+	clk_rg1refck: clk_rg1refck {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <125000000>;
@@ -50,14 +44,14 @@
 	};
 
 	 /* external clock signal rg2refck, supplied by the phy */
-	clk_rg2refck: clk-rg2refck {
+	clk_rg2refck: clk_rg2refck {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <125000000>;
 		clock-output-names = "clk_rg2refck";
 	};
 
-	clk_xin: clk-xin {
+	clk_xin: clk_xin {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <50000000>;
@@ -71,8 +65,9 @@
 		interrupt-parent = <&gic>;
 		ranges = <0x0 0xf0000000 0x00900000>;
 
-		fuse: fuse@18a000 {
-			compatible = "nuvoton,npcm750-fuse", "syscon", "simple-mfd";
+		fuse:fuse@18a000 {
+			compatible = "nuvoton,npcm750-fuse", "syscon",
+				"simple-mfd";
 			reg = <0x18a000 0x1000>;
 		};
 
@@ -89,6 +84,10 @@
 			cache-level = <2>;
 			clocks = <&clk NPCM7XX_CLK_AXI>;
 			arm,shared-override;
+			arm,prefetch-data = <1>;
+			arm,prefetch-instr = <1>;
+			arm,tag-latency = <1 1 1>;
+			arm,data-latency = <1 1 1>;
 		};
 
 		gic: interrupt-controller@3ff000 {
@@ -165,7 +164,6 @@
 			resets = <&rstc NPCM7XX_RESET_IPSRST1 NPCM7XX_RESET_EMC1>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&r1_pins
-					&r1err_pins
 					&r1md_pins>;
 			status = "disabled";
 		};
@@ -174,30 +172,6 @@
 			compatible = "nuvoton,npcm750-ehci";
 			reg = <0xf0806000 0x1000>;
 			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
-			status = "disabled";
-		};
-
-		fiu0: spi@fb000000 {
-			compatible = "nuvoton,npcm750-fiu";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0xfb000000 0x1000>;
-			reg-names = "control", "memory";
-			clocks = <&clk NPCM7XX_CLK_SPI0>;
-			clock-names = "clk_spi0";
-			status = "disabled";
-		};
-
-		fiu3: spi@c0000000 {
-			compatible = "nuvoton,npcm750-fiu";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0xc0000000 0x1000>;
-			reg-names = "control", "memory";
-			clocks = <&clk NPCM7XX_CLK_SPI3>;
-			clock-names = "clk_spi3";
-			pinctrl-names = "default";
-			pinctrl-0 = <&spi3_pins>;
 			status = "disabled";
 		};
 
@@ -261,12 +235,36 @@
 			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		fiu0: spi@fb000000 {
+			compatible = "nuvoton,npcm750-fiu";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xfb000000 0x1000>;
+			reg-names = "control";
+			clocks = <&clk NPCM7XX_CLK_SPI0>;
+			clock-names = "clk_spi0";
+			status = "disabled";
+		};
+
+		fiu3: spi@c0000000 {
+			compatible = "nuvoton,npcm750-fiu";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xc0000000 0x1000>;
+			reg-names = "control";
+			clocks = <&clk NPCM7XX_CLK_SPI3>;
+			clock-names = "clk_spi3";
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi3_pins>;
+			status = "disabled";
+		};
+
 		fiux: spi@fb001000 {
 			compatible = "nuvoton,npcm750-fiu";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xfb001000 0x1000>;
-			reg-names = "control", "memory";
+			reg-names = "control";
 			clocks = <&clk NPCM7XX_CLK_SPIX>;
 			clock-names = "clk_spix";
 			status = "disabled";
@@ -281,8 +279,7 @@
 		vcd: vcd@f0810000 {
 			compatible = "nuvoton,npcm750-vcd";
 			reg = <0xf0810000 0x10000>;
-			mem-addr = <0x3e200000>;
-			mem-size = <0x600000>;
+			phy-memory = <0x3e200000 0x600000>;
 			interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
@@ -290,8 +287,7 @@
 		ece: ece@f0820000 {
 			compatible = "nuvoton,npcm750-ece";
 			reg = <0xf0820000 0x2000>;
-			mem-addr = <0x3e800000>;
-			mem-size = <0x600000>;
+			phy-memory = <0x3e800000 0x600000>;
 			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
@@ -299,7 +295,7 @@
 		pcimbox: pcimbox@f0848000 {
 			compatible = "nuvoton,npcm750-pci-mbox",
 					"simple-mfd", "syscon";
-			reg = <0xf084C000 0x8
+			reg = <0xf084C000 0xC
 				0xf0848000 0x3F00>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 		};
@@ -363,20 +359,13 @@
 			};
 
 			peci: peci-bus@100000 {
-				compatible = "simple-bus";
+				compatible = "nuvoton,npcm750-peci";
+				reg = <0x100000 0x200>;
 				#address-cells = <1>;
-				#size-cells = <1>;
-				ranges = <0x0 0x100000 0x200>;
-
-				peci0: peci-bus@0 {
-					compatible = "nuvoton,npcm750-peci";
-					reg = <0x0 0x200>;
-					#address-cells = <1>;
-					#size-cells = <0>;
-					interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
-					clocks = <&clk NPCM7XX_CLK_APB3>;
-					status = "disabled";
-				};
+				#size-cells = <0>;
+				interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk NPCM7XX_CLK_APB3>;
+				status = "disabled";
 			};
 
 			spi0: spi@200000 {
@@ -493,6 +482,15 @@
 				status = "disabled";
 			};
 
+			otp:otp@189000 {
+				compatible = "nuvoton,npcm750-otp";
+				reg = <0x189000 0x1000
+					   0x18a000 0x1000>;
+				status = "disabled";
+				clocks = <&clk NPCM7XX_CLK_APB4>;
+				clock-names = "clk_apb4";
+			};
+
 			pwm_fan: pwm-fan-controller@103000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -524,15 +522,6 @@
 						&fanin12_pins &fanin13_pins
 						&fanin14_pins &fanin15_pins>;
 				status = "disabled";
-			};
-
-			otp:otp@189000 {
-				compatible = "nuvoton,npcm750-otp";
-				reg = <0x189000 0x1000
-					   0x18a000 0x1000>;
-				status = "disabled";
-				clocks = <&clk NPCM7XX_CLK_APB4>;
-				clock-names = "clk_apb4";
 			};
 
 			i2c0: i2c@80000 {
@@ -727,9 +716,10 @@
 				status = "disabled";
 			};
 
-			gfxi: gfxi@f000e000 {
-				compatible = "nuvoton,npcm750-gfxi", "syscon", "simple-mfd";
-				reg = <0xf000e000 0x100>;
+			gfxi: gfxi@e000 {
+				compatible = "nuvoton,npcm750-gfxi", "syscon",
+						"simple-mfd";
+				reg = <0xe000 0x100>;
 			};
 		};
 	};

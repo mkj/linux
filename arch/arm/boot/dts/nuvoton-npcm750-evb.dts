@@ -29,7 +29,7 @@
 		udc6 = &udc6;
 		udc7 = &udc7;
 		udc8 = &udc8;
-		udc9 = &udc9;
+		/* udc9 = &udc9; */
 		emmc0 = &sdhci0;
 		emmc1 = &sdhci1;
 		i2c0 = &i2c0;
@@ -85,104 +85,46 @@
 		};
 	};
 
-};
+ 	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&adc 0>, <&adc 1>, <&adc 2>, <&adc 3>,
+			<&adc 4>, <&adc 5>, <&adc 6>, <&adc 7>;
+	};
 
-&gmac0 {
-	phy-mode = "rgmii-id";
-	status = "okay";
-};
+	leds {
+		compatible = "gpio-leds";
 
-&gmac1 {
-	phy-mode = "rgmii-id";
-	status = "okay";
-};
+		heartbeat {
+			label = "heartbeat";
+			gpios = <&gpio4 18 1>;
+		};
 
-&ehci1 {
-	status = "okay";
-};
-
-&fiu0 {
-	status = "okay";
-	spi-nor@0 {
-		compatible = "jedec,spi-nor";
-		#address-cells = <1>;
-		#size-cells = <1>;
-		spi-rx-bus-width = <2>;
-		reg = <0>;
-		spi-max-frequency = <5000000>;
-		partitions@80000000 {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			bbuboot1@0 {
-				label = "bb-uboot-1";
-				reg = <0x0000000 0x80000>;
-				read-only;
-				};
-			bbuboot2@80000 {
-				label = "bb-uboot-2";
-				reg = <0x0080000 0x80000>;
-				read-only;
-				};
-			envparam@100000 {
-				label = "env-param";
-				reg = <0x0100000 0x40000>;
-				read-only;
-				};
-			spare@140000 {
-				label = "spare";
-				reg = <0x0140000 0xC0000>;
-				};
-			kernel@200000 {
-				label = "kernel";
-				reg = <0x0200000 0x400000>;
-				};
-			rootfs@600000 {
-				label = "rootfs";
-				reg = <0x0600000 0x700000>;
-				};
-			spare1@D00000 {
-				label = "spare1";
-				reg = <0x0D00000 0x200000>;
-				};
-			spare2@0F00000 {
-				label = "spare2";
-				reg = <0x0F00000 0x200000>;
-				};
-			spare3@1100000 {
-				label = "spare3";
-				reg = <0x1100000 0x200000>;
-				};
-			spare4@1300000 {
-				label = "spare4";
-				reg = <0x1300000 0x0>;
-			};
+		identify {
+			label = "identify";
+			gpios = <&gpio4 19 1>;
 		};
 	};
-};
 
-&fiu3 {
-	pinctrl-0 = <&spi3_pins>, <&spi3quad_pins>;
-	status = "okay";
-	spi-nor@0 {
-		compatible = "jedec,spi-nor";
+	jtag_master {
+		compatible = "nuvoton,npcm750-jtag-master";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		spi-rx-bus-width = <2>;
-		reg = <0>;
-		spi-max-frequency = <5000000>;
-		partitions@A0000000 {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			system1@0 {
-				label = "spi3-system1";
-				reg = <0x0 0x0>;
-			};
-		};
+
+		dev-num = <0>;
+		pspi-controller = <1>; /* pspi1 */
+		reg = <0xf0200000 0x1000>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk NPCM7XX_CLK_APB5>;
+
+		jtag-gpios = <&gpio5 15 GPIO_ACTIVE_HIGH>, /* TCK */
+				<&gpio5 16 GPIO_ACTIVE_HIGH>, /* TDI */
+				<&gpio5 17 GPIO_ACTIVE_HIGH>, /* TDO */
+				<&gpio6 11 GPIO_ACTIVE_HIGH>; /* TMS */
+		jtag-gpios-reg = <0xf0015000 0xf0015000
+						  0xf0015000 0xf0016000>;
+		status = "okay";
 	};
 };
-
 
 &gmac0 {
 	phy-mode = "rgmii-id";
@@ -196,12 +138,18 @@
 
 &emc0 {
 	phy-mode = "rmii";
+	pinctrl-0 = <&r1_pins
+			&r1err_pins
+			&r1md_pins>;
 	#use-ncsi; /* add this to support ncsi */
 	status = "okay";
 };
 
 &emc1 {
 	phy-mode = "rmii";
+	pinctrl-0 = <&r2_pins
+			&r2err_pins
+			&r2md_pins>;
 	#use-ncsi; /* add this to support ncsi */
 	status = "okay";
 };
@@ -222,7 +170,7 @@
 	status = "okay";
 };
 
-&udc2  {
+&udc2 {
 	status = "okay";
 };
 
@@ -250,9 +198,10 @@
 	status = "okay";
 };
 
-&udc9 {
+/* using USB host instead of UDC9*/ 
+/*&udc9 {
 	status = "okay";
-};
+}; */
 
 &aes {
 	status = "okay";
@@ -264,14 +213,13 @@
 
 &fiu0 {
 	status = "okay";
-
 	spi-nor@0 {
 		compatible = "jedec,spi-nor";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-rx-bus-width = <2>;
 		reg = <0>;
-
+		spi-max-frequency = <5000000>;
 		partitions@80000000 {
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
@@ -326,14 +274,13 @@
 &fiu3 {
 	pinctrl-0 = <&spi3_pins>, <&spi3quad_pins>;
 	status = "okay";
-
 	spi-nor@0 {
 		compatible = "jedec,spi-nor";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-rx-bus-width = <2>;
 		reg = <0>;
-
+		spi-max-frequency = <5000000>;
 		partitions@A0000000 {
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
@@ -347,7 +294,15 @@
 };
 
 &fiux {
+	status = "okay";
 	spix-mode;
+	spi-nor@0 {
+		compatible = "m25p80-nonjedec";
+		spi-max-frequency = <5000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0>;
+	};
 };
 
 &sdhci0 {
@@ -371,6 +326,10 @@
 };
 
 &watchdog1 {
+	nuvoton,reset-priority = <155>;
+	nuvoton,card-reset-type = "porst";
+	nuvoton,ext1-reset-type = "wd1";
+	nuvoton,ext2-reset-type = "sw2";
 	status = "okay";
 };
 
@@ -394,54 +353,14 @@
 	status = "okay";
 };
 
-&otp {
-	status = "okay";
-};
-
-&lpc_bpc {
-	monitor-ports = <0x80>;
-	status = "okay";
-};
-
-&peci0 {
-	cmd-timeout-ms = <1000>;
-	pull-down = <0>;
-	host-neg-bit-rate = <15>;
-	status = "okay";
-
-	intel-peci-dimmtemp@30 {
-		compatible = "intel,peci-client";
-		reg = <0x30>;
-	};
-};
-
-&fiux {
-	spix-mode;
-};
-
-&watchdog1 {
-	status = "okay";
-};
-
-&rng {
-	status = "okay";
-};
-
-&serial0 {
-	status = "okay";
-};
-
-&gcr {
-	serial_port_mux: mux-controller {
-		compatible = "mmio-mux";
-		#mux-control-cells = <1>;
-
-		mux-reg-masks = <0x38 0x07>;
-		idle-states = <2>; /* Serial port mode 3 (takeover) */
-	};
-};
-
 &adc {
+	/* enable external vref */
+	/*vref-supply = <&reg_vref1_2>;*/
+	#io-channel-cells = <1>;
+	status = "okay";
+};
+
+&otp {
 	status = "okay";
 };
 
@@ -458,6 +377,42 @@
 		status = "okay";
 	};
 };
+
+&lpc_host {
+	lpc_bpc: lpc_bpc@40 {
+		monitor-ports = <0x80>;
+		status = "okay";
+	};
+};
+
+/* I2C mux example */
+/*i2cmux0 {
+	compatible = "nuvoton,i2c-mux-npcm";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	status = "okay";
+	i2c-parent = <&i2c1>;
+	syscon = <&gcr>;
+	nuvoton,i2c-number = <1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&smb1_pins &smb1b_pins &smb1c_pins &smb1d_pins>;
+	i2c_segment_number = <0>, <1>, <2>, <3>;
+
+	i2c@2 {
+		reg = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		eeprom {
+			compatible = "atmel,24c04";
+			reg = <0x50>;
+			status = "okay";
+		};
+	};
+};*/
 
 /* lm75 on SVB */
 &i2c0 {
@@ -587,6 +542,18 @@
 	};
 };
 
+&peci {
+	cmd-timeout-ms = <1000>;
+	pull-down = <0>;
+	host-neg-bit-rate = <15>;
+	status = "okay";
+	intel-peci-dimmtemp@30 {
+		compatible = "intel,peci-client";
+		reg = <0x30>;
+		status = "okay";
+	};
+};
+
 &spi0 {
 	cs-gpios = <&gpio6 11 GPIO_ACTIVE_LOW>;
 	status = "okay";
@@ -668,3 +635,13 @@
 			&pin255_input>;
 };
 
+
+&gcr {
+	serial_port_mux: mux-controller {
+		compatible = "mmio-mux";
+		#mux-control-cells = <1>;
+
+		mux-reg-masks = <0x38 0x07>;
+		idle-states = <2>; /* Serial port mode 3 (takeover) */
+	};
+};

@@ -903,7 +903,7 @@
 	};
 };
 
-&peci0 {
+&peci {
 	cmd-timeout-ms = <1000>;
 	pull-down = <0>;
 	host-neg-bit-rate = <15>;

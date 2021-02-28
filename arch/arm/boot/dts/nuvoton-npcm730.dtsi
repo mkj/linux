@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018 Nuvoton Technology tomer.maimon@nuvoton.com
-// Copyright 2018 Google, Inc.
+// Copyright (c) 2020 Nuvoton Technology
 
 #include "nuvoton-common-npcm7xx.dtsi"
 
@@ -44,7 +43,7 @@
 	};
 
 	ahb {
-		udc9:udc@f0839000 {
+		udc9: udc@f0839000 {
 			compatible = "nuvoton,npcm750-udc";
 			reg = <0xf0839000 0x1000
 			       0xfffd0000 0x800>;

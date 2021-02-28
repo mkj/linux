@@ -3,7 +3,6 @@
 // Copyright 2018 Google, Inc.
 
 #include "nuvoton-common-npcm7xx.dtsi"
-#include "nuvoton-npcm750-gpio.dtsi"
 
 / {
 	#address-cells = <1>;
@@ -71,7 +70,6 @@
 			resets = <&rstc NPCM7XX_RESET_IPSRST1 NPCM7XX_RESET_EMC2>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&r2_pins
-					&r2err_pins
 					&r2md_pins>;
 			status = "disabled";
 		};
