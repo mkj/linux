@@ -388,6 +388,7 @@ static int npcm_peci_remove(struct platform_device *pdev)
 
 static const struct of_device_id npcm_peci_of_table[] = {
 	{ .compatible = "nuvoton,npcm750-peci", },
+	{ .compatible = "nuvoton,npcm845-peci", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, npcm_peci_of_table);
