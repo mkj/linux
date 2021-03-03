@@ -2,6 +2,8 @@ NPCM SoC Random Number Generator
 
 Required properties:
 - compatible  : "nuvoton,npcm750-rng" for the NPCM7XX BMC.
+				"nuvoton,npcm845-rng" for the NPCM8XX BMC.
+
 - reg         : Specifies physical base address and size of the registers.
 
 Example:
