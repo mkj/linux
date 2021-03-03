@@ -14,7 +14,10 @@ description:
 
 properties:
   compatible:
-    const: nuvoton,npcm750-adc
+    oneOf:
+      - items:
+          - const: nuvoton,npcm750-adc
+          - const: nuvoton,npcm845-adc
 
   reg:
     maxItems: 1
