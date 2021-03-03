@@ -2499,7 +2499,11 @@ static unsigned int npcm_get_divisor(struct uart_8250_port *up,
 {
 	struct uart_port *port = &up->port;
 
+#ifdef CONFIG_ARM64
+	return 0;
+#else
 	return DIV_ROUND_CLOSEST(port->uartclk, 16 * baud + 2) - 2;
+#endif
 }
 
 static unsigned int serial8250_do_get_divisor(struct uart_port *port,
