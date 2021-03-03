@@ -17,13 +17,14 @@
 
 /* NPCM7xx GCR registers */
 #define NPCM_MDLR_OFFSET	0x7C
-#define NPCM_MDLR_USBD0		BIT(9)
-#define NPCM_MDLR_USBD1		BIT(8)
-#define NPCM_MDLR_USBD2_4	BIT(21)
-#define NPCM_MDLR_USBD5_9	BIT(22)
+#define NPCM7XX_MDLR_USBD0	BIT(9)
+#define NPCM7XX_MDLR_USBD1	BIT(8)
+#define NPCM7XX_MDLR_USBD2_4	BIT(21)
+#define NPCM7XX_MDLR_USBD5_9	BIT(22)
 
 #define NPCM_USB1PHYCTL_OFFSET	0x140
 #define NPCM_USB2PHYCTL_OFFSET	0x144
+#define NPCM_USB3PHYCTL_OFFSET	0x148
 #define NPCM_USBXPHYCTL_RS	BIT(28)
 
 /* NPCM7xx Reset registers */
@@ -39,7 +40,7 @@
 #define NPCM_IPSRST1_USBD6	BIT(24)
 
 #define NPCM_IPSRST2		0x24
-#define NPCM_IPSRST2_USB_HOST	BIT(26)
+#define NPCM_IPSRST2_USB_HOST1	BIT(26)
 
 #define NPCM_IPSRST3		0x34
 #define NPCM_IPSRST3_USBD0	BIT(4)
@@ -48,6 +49,16 @@
 #define NPCM_IPSRST3_USBD9	BIT(7)
 #define NPCM_IPSRST3_USBPHY1	BIT(24)
 #define NPCM_IPSRST3_USBPHY2	BIT(25)
+
+/* NPCM8xx MDLR bits */
+#define NPCM8XX_MDLR_USBD0_3	BIT(9)
+#define NPCM8XX_MDLR_USBD4_7	BIT(22)
+#define NPCM8XX_MDLR_USBD8	BIT(24)
+#define NPCM8XX_MDLR_USBD9	BIT(21)
+
+#define NPCM_IPSRST4		0x74
+#define NPCM_IPSRST4_USBPHY3	BIT(25)
+#define NPCM_IPSRST4_USB_HOST2	BIT(31)
 
 #define NPCM_RC_RESETS_PER_REG	32
 #define NPCM_MASK_RESETS	GENMASK(4, 0)
@@ -124,7 +135,7 @@ static int npcm_reset_xlate(struct reset_controller_dev *rcdev,
 
 	offset = reset_spec->args[0];
 	if (offset != NPCM_IPSRST1 && offset != NPCM_IPSRST2 &&
-	    offset != NPCM_IPSRST3) {
+	    offset != NPCM_IPSRST3 && offset != NPCM_IPSRST4) {
 		dev_err(rcdev->dev, "Error reset register (0x%x)\n", offset);
 		return -EINVAL;
 	}
@@ -140,6 +151,8 @@ static int npcm_reset_xlate(struct reset_controller_dev *rcdev,
 static const struct of_device_id npcm_rc_match[] = {
 	{ .compatible = "nuvoton,npcm750-reset",
 		.data = (void *)"nuvoton,npcm750-gcr" },
+	{ .compatible = "nuvoton,npcm845-reset",
+		.data = (void *)"nuvoton,npcm845-gcr" },
 	{ }
 };
 
@@ -149,12 +162,14 @@ static const struct of_device_id npcm_rc_match[] = {
  */
 static int npcm_usb_reset(struct platform_device *pdev, struct npcm_rc_data *rc)
 {
-	u32 mdlr, iprst1, iprst2, iprst3;
+	u32 mdlr, iprst1, iprst2, iprst3, iprst4;
+	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct regmap *gcr_regmap;
 	u32 ipsrst1_bits = 0;
-	u32 ipsrst2_bits = NPCM_IPSRST2_USB_HOST;
+	u32 ipsrst2_bits = NPCM_IPSRST2_USB_HOST1;
 	u32 ipsrst3_bits = 0;
+	u32 ipsrst4_bits = NPCM_IPSRST4_USB_HOST2 | NPCM_IPSRST4_USBPHY3;
 	const char *gcr_dt;
 
 	gcr_dt = (const char *)
@@ -168,21 +183,41 @@ static int npcm_usb_reset(struct platform_device *pdev, struct npcm_rc_data *rc)
 
 	/* checking which USB device is enabled */
 	regmap_read(gcr_regmap, NPCM_MDLR_OFFSET, &mdlr);
-	if (!(mdlr & NPCM_MDLR_USBD0))
-		ipsrst3_bits |= NPCM_IPSRST3_USBD0;
-	if (!(mdlr & NPCM_MDLR_USBD1))
-		ipsrst1_bits |= NPCM_IPSRST1_USBD1;
-	if (!(mdlr & NPCM_MDLR_USBD2_4))
-		ipsrst1_bits |= (NPCM_IPSRST1_USBD2 |
-				 NPCM_IPSRST1_USBD3 |
-				 NPCM_IPSRST1_USBD4);
-	if (!(mdlr & NPCM_MDLR_USBD0)) {
-		ipsrst1_bits |= (NPCM_IPSRST1_USBD5 |
-				 NPCM_IPSRST1_USBD6);
-		ipsrst3_bits |= (NPCM_IPSRST3_USBD7 |
-				 NPCM_IPSRST3_USBD8 |
-				 NPCM_IPSRST3_USBD9);
+	if (of_device_is_compatible(np, "nuvoton,npcm750-reset")) {
+		if (!(mdlr & NPCM7XX_MDLR_USBD0))
+			ipsrst3_bits |= NPCM_IPSRST3_USBD0;
+		if (!(mdlr & NPCM7XX_MDLR_USBD1))
+			ipsrst1_bits |= NPCM_IPSRST1_USBD1;
+		if (!(mdlr & NPCM7XX_MDLR_USBD2_4))
+			ipsrst1_bits |= (NPCM_IPSRST1_USBD2 |
+					 NPCM_IPSRST1_USBD3 |
+					 NPCM_IPSRST1_USBD4);
+		if (!(mdlr & NPCM7XX_MDLR_USBD0)) {
+			ipsrst1_bits |= (NPCM_IPSRST1_USBD5 |
+					 NPCM_IPSRST1_USBD6);
+			ipsrst3_bits |= (NPCM_IPSRST3_USBD7 |
+					 NPCM_IPSRST3_USBD8 |
+					 NPCM_IPSRST3_USBD9);
+		}
 	}
+	if (of_device_is_compatible(np, "nuvoton,npcm845-reset")) {
+		if (!(mdlr & NPCM8XX_MDLR_USBD0_3)) {
+			ipsrst3_bits |= NPCM_IPSRST3_USBD0;
+			ipsrst1_bits |= (NPCM_IPSRST1_USBD1 |
+					 NPCM_IPSRST1_USBD2 |
+					 NPCM_IPSRST1_USBD3);
+		}
+		if (!(mdlr & NPCM8XX_MDLR_USBD4_7)) {
+			ipsrst1_bits |= (NPCM_IPSRST1_USBD4 |
+					 NPCM_IPSRST1_USBD5 |
+					 NPCM_IPSRST1_USBD6);
+			ipsrst3_bits |= NPCM_IPSRST3_USBD7;
+		}
+		if (!(mdlr & NPCM8XX_MDLR_USBD8))
+			ipsrst3_bits |= NPCM_IPSRST3_USBD8;
+		if (!(mdlr & NPCM8XX_MDLR_USBD9))
+			ipsrst3_bits |= NPCM_IPSRST3_USBD9;
+ 	}
 
 	/* assert reset USB PHY and USB devices */
 	iprst1 = readl(rc->base + NPCM_IPSRST1);
@@ -198,23 +233,40 @@ static int npcm_usb_reset(struct platform_device *pdev, struct npcm_rc_data *rc)
 	writel(iprst2, rc->base + NPCM_IPSRST2);
 	writel(iprst3, rc->base + NPCM_IPSRST3);
 
+	if (of_device_is_compatible(np, "nuvoton,npcm845-reset")) {
+		iprst4 = readl(rc->base + NPCM_IPSRST4) | ipsrst4_bits;
+		writel(iprst4, rc->base + NPCM_IPSRST4);
+	}
+
 	/* clear USB PHY RS bit */
 	regmap_update_bits(gcr_regmap, NPCM_USB1PHYCTL_OFFSET,
 			   NPCM_USBXPHYCTL_RS, 0);
 	regmap_update_bits(gcr_regmap, NPCM_USB2PHYCTL_OFFSET,
-			   NPCM_USBXPHYCTL_RS, 0);
+			   NPCM_USBXPHYCTL_RS, 0);	
+	if (of_device_is_compatible(np, "nuvoton,npcm845-reset"))
+		regmap_update_bits(gcr_regmap, NPCM_USB3PHYCTL_OFFSET,
+				   NPCM_USBXPHYCTL_RS, 0);	
 
 	/* deassert reset USB PHY */
 	iprst3 &= ~(NPCM_IPSRST3_USBPHY1 | NPCM_IPSRST3_USBPHY2);
 	writel(iprst3, rc->base + NPCM_IPSRST3);
+	if (of_device_is_compatible(np, "nuvoton,npcm845-reset")) {
+		iprst4 &= ~NPCM_IPSRST4_USBPHY3;
+		writel(iprst4, rc->base + NPCM_IPSRST4);
+	}
 
+#ifndef CONFIG_ARM64
 	udelay(50);
+#endif
 
 	/* set USB PHY RS bit */
 	regmap_update_bits(gcr_regmap, NPCM_USB1PHYCTL_OFFSET,
 			   NPCM_USBXPHYCTL_RS, NPCM_USBXPHYCTL_RS);
 	regmap_update_bits(gcr_regmap, NPCM_USB2PHYCTL_OFFSET,
 			   NPCM_USBXPHYCTL_RS, NPCM_USBXPHYCTL_RS);
+	if (of_device_is_compatible(np, "nuvoton,npcm845-reset"))
+		regmap_update_bits(gcr_regmap, NPCM_USB3PHYCTL_OFFSET,
+				   NPCM_USBXPHYCTL_RS, NPCM_USBXPHYCTL_RS);	
 
 	/* deassert reset USB devices*/
 	iprst1 &= ~ipsrst1_bits;
@@ -224,6 +276,10 @@ static int npcm_usb_reset(struct platform_device *pdev, struct npcm_rc_data *rc)
 	writel(iprst1, rc->base + NPCM_IPSRST1);
 	writel(iprst2, rc->base + NPCM_IPSRST2);
 	writel(iprst3, rc->base + NPCM_IPSRST3);
+	if (of_device_is_compatible(np, "nuvoton,npcm845-reset")) {
+		iprst4 &= ~ipsrst4_bits;
+		writel(iprst4, rc->base + NPCM_IPSRST4);
+	}
 
 	return 0;
 }
