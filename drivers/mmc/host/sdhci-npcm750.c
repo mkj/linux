@@ -295,6 +295,7 @@ static int sdhci_resume(struct device *dev)
 
 static const struct of_device_id sdhci_nuvoton_of_match[] = {
 	{ .compatible = "nuvoton,npcm750-sdhci" },
+	{ .compatible = "nuvoton,npcm845-sdhci" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sdhci_nuvoton_of_match);
