@@ -12,6 +12,7 @@ maintainers:
 properties:
   compatible:
     const: nuvoton,npcm750-peci # for the NPCM7XX BMC.
+    const: nuvoton,npcm845-peci # for the NPCM8XX BMC.
 
   reg:
     maxItems: 1
