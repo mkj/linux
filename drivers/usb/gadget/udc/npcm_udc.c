@@ -3074,6 +3074,7 @@ struct bus_type usb_udc_bus_type = {
 
 static const struct of_device_id nuvoton_udc_of_match[] = {
 	{ .compatible = "nuvoton,npcm750-udc", },
+	{ .compatible = "nuvoton,npcm845-udc", },
 };
 MODULE_DEVICE_TABLE(of, nuvoton_udc_of_match);
 

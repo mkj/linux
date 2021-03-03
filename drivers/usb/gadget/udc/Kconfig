@@ -464,7 +464,7 @@ config USB_TEGRA_XUDC
 
 config USB_GADGET_NPCM_USB2
 	bool "NPCM Highspeed USB DR Peripheral Controller"
-	depends on ARCH_NPCM7XX
+	depends on ARCH_NPCM
 	select USB_GADGET_DUALSPEED
 	help
 	   Some of Freescale PowerPC processors have a High Speed
