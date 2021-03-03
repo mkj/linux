@@ -1,13 +1,14 @@
 Nuvoton NPCM Reset controller
 
 Required properties:
-- compatible : "nuvoton,npcm750-reset" for NPCM7XX BMC
+- compatible : "nuvoton,npcm750-reset" for Poleg NPCM7XX BMC.
+			   "nuvoton,npcm845-reset" for Arbel NPCM8XX BMC.
 - reg : specifies physical base address and size of the register.
 - #reset-cells: must be set to 2
 
 Optional property:
 - nuvoton,sw-reset-number - Contains the software reset number to restart the SoC.
-  NPCM7xx contain four software reset that represent numbers 1 to 4.
+  NPCM contain four software reset that represent numbers 1 to 4.
 
   If 'nuvoton,sw-reset-number' is not specified software reset is disabled.
 
@@ -30,3 +31,15 @@ example:
         };
 
 The index could be found in <dt-bindings/reset/nuvoton,npcm7xx-reset.h>.
+
+Specifying reset lines connected to IP NPCM8XX modules
+======================================================
+example:
+
+        spi0: spi@..... {
+                ...
+                resets = <&rstc NPCM8XX_RESET_IPSRST2 NPCM8XX_RESET_PSPI1>;
+                ...
+        };
+
+The index could be found in <dt-bindings/reset/nuvoton,npcm8xx-reset.h>.
