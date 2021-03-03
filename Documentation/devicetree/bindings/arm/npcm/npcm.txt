@@ -3,4 +3,7 @@ NPCM Platforms Device Tree Bindings
 NPCM750 SoC
 Required root node properties:
 	- compatible = "nuvoton,npcm750";
+NPCM845 SoC
+Required root node properties:
+	- compatible = "nuvoton,npcm845";
 
