@@ -19,6 +19,7 @@
 #define NPCM_RNGMODE_REG	0x08	/* Mode register */
 
 #define NPCM_RNG_CLK_SET_25MHZ	GENMASK(4, 3) /* 20-25 MHz */
+#define NPCM_RNG_CLK_SET_60MHZ	BIT(3) /* 50-60 MHz */
 #define NPCM_RNG_DATA_VALID	BIT(1)
 #define NPCM_RNG_ENABLE		BIT(0)
 #define NPCM_RNG_M1ROSEL	BIT(1)
@@ -31,14 +32,14 @@
 struct npcm_rng {
 	void __iomem *base;
 	struct hwrng rng;
+	u32 clkp;
 };
 
 static int npcm_rng_init(struct hwrng *rng)
 {
 	struct npcm_rng *priv = to_npcm_rng(rng);
 
-	writel(NPCM_RNG_CLK_SET_25MHZ | NPCM_RNG_ENABLE,
-	       priv->base + NPCM_RNGCS_REG);
+	writel(priv->clkp | NPCM_RNG_ENABLE, priv->base + NPCM_RNGCS_REG);
 
 	return 0;
 }
@@ -47,7 +48,7 @@ static void npcm_rng_cleanup(struct hwrng *rng)
 {
 	struct npcm_rng *priv = to_npcm_rng(rng);
 
-	writel(NPCM_RNG_CLK_SET_25MHZ, priv->base + NPCM_RNGCS_REG);
+	writel(priv->clkp, priv->base + NPCM_RNGCS_REG);
 }
 
 static int npcm_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
@@ -101,6 +102,11 @@ static int npcm_rng_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 100);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
+
+	if (of_device_is_compatible(pdev->dev.of_node, "nuvoton,npcm750-rng"))
+		priv->clkp = NPCM_RNG_CLK_SET_25MHZ;
+	if (of_device_is_compatible(pdev->dev.of_node, "nuvoton,npcm845-rng"))
+		priv->clkp = NPCM_RNG_CLK_SET_60MHZ;
 
 #ifndef CONFIG_PM
 	priv->rng.init = npcm_rng_init;
@@ -163,6 +169,7 @@ static const struct dev_pm_ops npcm_rng_pm_ops = {
 
 static const struct of_device_id rng_dt_id[] __maybe_unused = {
 	{ .compatible = "nuvoton,npcm750-rng",  },
+	{ .compatible = "nuvoton,npcm845-rng",  },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rng_dt_id);
