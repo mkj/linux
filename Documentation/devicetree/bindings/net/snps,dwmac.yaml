@@ -232,6 +232,11 @@ properties:
     description:
       Force DMA to use the threshold mode for both tx and rx
 
+  snps,eee-force-disable:
+    $ref: /schemas/types.yaml#definitions/flag
+    description:
+      Disable the EEE advertise at phy level
+
   snps,force_sf_dma_mode:
     $ref: /schemas/types.yaml#definitions/flag
     description:
