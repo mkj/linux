@@ -282,6 +282,8 @@
 			phy-memory = <0x3e200000 0x600000>;
 			interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+			gcr-syscon = <&gcr>;
+			gfxi-syscon = <&gfxi>;
 		};
 
 		ece: ece@f0820000 {
