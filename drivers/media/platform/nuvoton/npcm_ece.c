@@ -92,7 +92,7 @@
 
 #define ECE_OP_TIMEOUT msecs_to_jiffies(100)
 
-#define DEVICE_NAME "NPCM ECE"
+#define DEVICE_NAME "nuvoton-ece"
 
 struct ece_ioctl_cmd {
 	u32 framebuf;
@@ -174,7 +174,7 @@ static u32 npcm_ece_get_ed_size(struct npcm_ece *priv, u32 offset)
 static void npcm_ece_fifo_reset_bypass(struct npcm_ece *priv)
 {
 	struct regmap *ece = priv->ece_regmap;
-	regmap_update_bits(ece, DDA_CTRL, DDA_CTRL_ECEEN, ~DDA_CTRL_ECEEN);
+	regmap_update_bits(ece, DDA_CTRL, DDA_CTRL_ECEEN, (u32)~DDA_CTRL_ECEEN);
 	regmap_update_bits(ece, DDA_CTRL, DDA_CTRL_ECEEN, DDA_CTRL_ECEEN);
 }
 
@@ -269,13 +269,13 @@ static void npcm_ece_reset(struct npcm_ece *priv)
 	struct regmap *ece = priv->ece_regmap;
 
 	regmap_update_bits(ece,
-				DDA_CTRL, DDA_CTRL_ECEEN, ~DDA_CTRL_ECEEN);
+				DDA_CTRL, DDA_CTRL_ECEEN, (u32)~DDA_CTRL_ECEEN);
 	regmap_update_bits(ece,
 				HEX_CTRL, HEX_CTRL_ENCDIS, HEX_CTRL_ENCDIS);
 	regmap_update_bits(ece,
 				DDA_CTRL, DDA_CTRL_ECEEN, DDA_CTRL_ECEEN);
 	regmap_update_bits(ece,
-				HEX_CTRL, HEX_CTRL_ENCDIS, ~HEX_CTRL_ENCDIS);
+				HEX_CTRL, HEX_CTRL_ENCDIS, (u32)~HEX_CTRL_ENCDIS);
 
 	npcm_ece_clear_rect_offset(priv);
 }
@@ -298,9 +298,9 @@ static int npcm_ece_stop(struct npcm_ece *priv)
 	struct regmap *ece = priv->ece_regmap;
 
 	regmap_update_bits(ece,
-				DDA_CTRL, DDA_CTRL_ECEEN, ~DDA_CTRL_ECEEN);
+				DDA_CTRL, DDA_CTRL_ECEEN, (u32)~DDA_CTRL_ECEEN);
 	regmap_update_bits(ece,
-				DDA_CTRL, DDA_CTRL_INTEN, ~DDA_CTRL_INTEN);
+				DDA_CTRL, DDA_CTRL_INTEN, (u32)~DDA_CTRL_INTEN);
 	regmap_update_bits(ece,
 				HEX_CTRL, HEX_CTRL_ENCDIS, HEX_CTRL_ENCDIS);
 	npcm_ece_clear_rect_offset(priv);
@@ -440,7 +440,7 @@ long npcm_ece_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		ed_size = npcm_ece_get_ed_size(priv, offset);
 
 		regmap_update_bits(ece,
-			DDA_CTRL, DDA_CTRL_INTEN, ~DDA_CTRL_INTEN);
+			DDA_CTRL, DDA_CTRL_INTEN, (u32)~DDA_CTRL_INTEN);
 
 		if (ed_size == 0) {
 			err = -EFAULT;
@@ -524,30 +524,29 @@ struct file_operations const npcm_ece_fops = {
 
 static int npcm_ece_device_create(struct npcm_ece *priv)
 {
-	int ret;
+	int ret = 0;
+	struct resource resm;
 	struct device *dev = priv->dev;
+	struct device_node *node;
 
-	ret = of_property_read_u32_index(dev->of_node,
-		"phy-memory", 0, &priv->dma);
-	if (ret) {
-		dev_err(dev, "Failed get ece memory\n");
-		goto err;
+	/* optional. */
+	node = of_parse_phandle(dev->of_node, "memory-region", 0);
+	if (node) {
+		ret = of_address_to_resource(node, 0, &resm);
+		of_node_put(node);
+		if (ret) {
+			dev_err(dev, "Couldn't address to resource for reserved memory\n");
+			return -ENODEV;
+		}
+
+		priv->size = (u32)resource_size(&resm);
+		priv->dma = (u32)resm.start;
+	} else {
+		dev_err(dev, "Cannnot find memory-region\n");
+		return -ENODEV;
 	}
 
-	ret = of_property_read_u32_index(dev->of_node,
-		"phy-memory", 1, &priv->size);
-	if (ret) {
-		dev_err(dev, "Failed get ece memory size\n");
-		goto err;
-	}
-
-	if (request_mem_region(priv->dma,
-		priv->size, DEVICE_NAME) == NULL) {
-		dev_err(dev, "%s: failed to request ece memory region\n",
-		 __func__);
-		ret = -EBUSY;
-		goto err;
-	}
+	dev_info(dev, "Reserved memory start 0x%x size 0x%x\n", priv->dma, priv->size);
 
 	priv->virt = ioremap(priv->dma, priv->size);
 	if (!priv->virt) {
@@ -641,11 +640,11 @@ static int npcm_ece_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->lock);
 	init_completion(&priv->complete);
 
-	pr_info("NPCM ECE Driver probed %s\n", ECE_VERSION);
+	dev_info(dev, "NPCM ECE Driver probed %s\n", ECE_VERSION);
 	return 0;
 
 err:
-	kfree(priv);
+	devm_kfree(dev, priv);
 	return ret;
 }
 
@@ -660,6 +659,8 @@ static int npcm_ece_remove(struct platform_device *pdev)
 	kfree(priv->miscdev.name);
 
 	mutex_destroy(&priv->mlock);
+
+	iounmap(priv->virt);
 
 	kfree(priv);
 

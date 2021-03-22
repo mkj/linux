@@ -50,7 +50,7 @@
 
 #define VCD_OP_TIMEOUT msecs_to_jiffies(100)
 
-#define DEVICE_NAME "NPCM VCD"
+#define DEVICE_NAME "nuvoton-vcd"
 
 #define RECT_TILE_W	16
 #define RECT_TILE_H	16
@@ -368,8 +368,7 @@ struct npcm_vcd {
 	struct regmap *gcr_regmap;
 	struct regmap *gfx_regmap;
 	u32 size;
-	dma_addr_t dma;
-	void *virt;
+	u32 dma;
 	u32 rect_cnt;
 	u32 status;
 	char *video_name;
@@ -504,8 +503,8 @@ static void npcm_vcd_local_display(struct npcm_vcd *priv, u8 enable)
 	struct regmap *gcr = priv->gcr_regmap;
 
 	if (enable) {
-		regmap_update_bits(gcr, INTCR, INTCR_LDDRB, ~INTCR_LDDRB);
-		regmap_update_bits(gcr, INTCR, INTCR_DACOFF, ~INTCR_DACOFF);
+		regmap_update_bits(gcr, INTCR, INTCR_LDDRB, (u32)~INTCR_LDDRB);
+		regmap_update_bits(gcr, INTCR, INTCR_DACOFF, (u32)~INTCR_DACOFF);
 	} else {
 		regmap_update_bits(gcr, INTCR, INTCR_LDDRB, INTCR_LDDRB);
 		regmap_update_bits(gcr, INTCR, INTCR_DACOFF, INTCR_DACOFF);
@@ -670,7 +669,7 @@ static int npcm_vcd_reset(struct npcm_vcd *priv)
 
 	/* Inactive graphic reset */
 	regmap_update_bits(
-		gcr, INTCR2, INTCR2_GIRST2, ~INTCR2_GIRST2);
+		gcr, INTCR2, INTCR2_GIRST2, (u32)~INTCR2_GIRST2);
 
 	return 0;
 }
@@ -692,9 +691,9 @@ static void npcm_vcd_dehs(struct npcm_vcd *priv, int is_de)
 
 	if (is_de) {
 		regmap_update_bits(
-			vcd, VCD_MODE, VCD_MODE_DE_HS, ~VCD_MODE_DE_HS);
+			vcd, VCD_MODE, VCD_MODE_DE_HS, (u32)~VCD_MODE_DE_HS);
 		regmap_update_bits(
-			gcr, INTCR, INTCR_DEHS, ~INTCR_DEHS);
+			gcr, INTCR, INTCR_DEHS, (u32)~INTCR_DEHS);
 	} else {
 		regmap_update_bits(
 			vcd, VCD_MODE, VCD_MODE_DE_HS, VCD_MODE_DE_HS);
@@ -721,7 +720,7 @@ static void npcm_vcd_kvm_bw(struct npcm_vcd *priv, u8 bandwidth)
 			vcd,
 			VCD_MODE,
 			VCD_MODE_KVM_BW_SET,
-			~VCD_MODE_KVM_BW_SET);
+			(u32)~VCD_MODE_KVM_BW_SET);
 }
 
 static void npcm_vcd_update_info(struct npcm_vcd *priv)
@@ -776,7 +775,7 @@ static void npcm_vcd_detect_video_mode(struct npcm_vcd *priv)
 
 	dev_dbg(priv->dev, "Resolution: %d x %d, Pixel Clk %zuKHz, Line Pitch %d\n",
 			priv->info.hdisp, priv->info.vdisp,
-			priv->info.pixelclk,
+			(size_t)priv->info.pixelclk,
 			priv->info.line_pitch);
 }
 
@@ -820,7 +819,7 @@ static int npcm_vcd_command(struct npcm_vcd *priv, u32 value)
 
 	regmap_read(vcd, VCD_CMD, &cmd);
 
-	cmd &= ~VCD_CMD_OP_MASK;
+	cmd &= (u32)~VCD_CMD_OP_MASK;
 	cmd |= (value << VCD_CMD_OP_OFFSET);
 
 	regmap_write(vcd, VCD_CMD, cmd);
@@ -1067,7 +1066,7 @@ static int npcm_vcd_init(struct npcm_vcd *priv)
 	struct regmap *vcd = priv->vcd_regmap;
 
 	/* Enable display of KVM GFX and access to memory */
-	regmap_update_bits(gcr, INTCR, INTCR_GFXIFDIS, ~INTCR_GFXIFDIS);
+	regmap_update_bits(gcr, INTCR, INTCR_GFXIFDIS, (u32)~INTCR_GFXIFDIS);
 
 	/* KVM in progress */
 	regmap_update_bits(gcr, INTCR, INTCR_KVMSI, INTCR_KVMSI);
@@ -1078,7 +1077,7 @@ static int npcm_vcd_init(struct npcm_vcd *priv)
 		INTCR2_GIHCRST | INTCR2_GIVCRST);
 
 	/* Select KVM GFX input */
-	regmap_update_bits(gcr, MFSEL1, MFSEL1_DVH1SEL, ~MFSEL1_DVH1SEL);
+	regmap_update_bits(gcr, MFSEL1, MFSEL1_DVH1SEL, (u32)~MFSEL1_DVH1SEL);
 
 	if (npcm_vcd_ready(priv))
 		return	-ENODEV;
@@ -1147,7 +1146,7 @@ static void npcm_vcd_stop(struct npcm_vcd *priv)
 	regmap_update_bits(gcr, INTCR, INTCR_GFXIFDIS, INTCR_GFXIFDIS);
 
 	/* KVM is not in progress */
-	regmap_update_bits(gcr, INTCR, INTCR_KVMSI, ~INTCR_KVMSI);
+	regmap_update_bits(gcr, INTCR, INTCR_KVMSI, (u32)~INTCR_KVMSI);
 
 	regmap_write(vcd, VCD_INTE, 0);
 	regmap_write(vcd, VCD_STAT, VCD_STAT_CLEAR);
@@ -1353,11 +1352,11 @@ npcm_do_vcd_ioctl(struct npcm_vcd *priv, unsigned int cmd,
 			}
 
 			regmap_update_bits(vcd, VCD_MODE, VCD_MODE_VCDE,
-				~VCD_MODE_VCDE);
+				(u32)~VCD_MODE_VCDE);
 
 			if (vcd_cmd != VCD_CMD_OP_CAPTURE && timeout > 0) {
 				regmap_update_bits(vcd, VCD_MODE, VCD_MODE_IDBC,
-					~VCD_MODE_IDBC);
+					(u32)~VCD_MODE_IDBC);
 				npcm_short_vcd_reset(priv);
 				npcm_vcd_get_diff_table(priv);
 			}
@@ -1498,37 +1497,28 @@ static const struct file_operations npcm_vcd_fops = {
 
 static int npcm_vcd_device_create(struct npcm_vcd *priv)
 {
-	int ret;
+	int ret = 0;
+	struct resource resm;
 	struct device *dev = priv->dev;
-	ret = of_property_read_u32_index(dev->of_node,
-		"phy-memory", 0, &priv->dma);
-	if (ret) {
-		dev_err(dev, "Failed get vcd memory\n");
-		goto err;
+	struct device_node *node;
+
+	node = of_parse_phandle(dev->of_node, "memory-region", 0);
+	if (node) {
+		ret = of_address_to_resource(node, 0, &resm);
+		of_node_put(node);
+		if (ret) {
+			dev_err(dev, "Couldn't address to resource for reserved memory\n");
+			return -ENODEV;
+		}
+
+		priv->size = (u32)resource_size(&resm);
+		priv->dma = (u32)resm.start;
+	} else {
+		dev_err(dev, "Cannnot find memory-region\n");
+		return -ENODEV;
 	}
 
-	ret = of_property_read_u32_index(dev->of_node,
-		"phy-memory", 1, &priv->size);
-	if (ret) {
-		dev_err(dev, "Failed get vcd memory size\n");
-		goto err;
-	}
-
-	if (request_mem_region(priv->dma,
-		priv->size, DEVICE_NAME) == NULL) {
-		dev_err(dev, "%s: failed to request vcd memory region\n",
-		 __func__);
-		ret = -EBUSY;
-		goto err;
-	}
-
-	priv->virt = ioremap(priv->dma, priv->size);
-	if (!priv->virt) {
-		dev_err(dev, "%s: cannot map vcd memory region\n",
-			 __func__);
-		ret = -EIO;
-		goto err;
-	}
+	dev_info(dev, "Reserved memory start 0x%x size 0x%x\n", priv->dma, priv->size);
 
 	ret = of_property_read_u32(dev->of_node,
 			     "de-mode", &priv->de_mode);
@@ -1637,11 +1627,11 @@ static int npcm_vcd_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&priv->list);
 	init_completion(&priv->complete);
 
-	pr_info("NPCM VCD Driver probed %s\n", VCD_VERSION);
+	dev_info(dev, "NPCM VCD Driver probed %s\n", VCD_VERSION);
 	return 0;
 
 err:
-	kfree(priv);
+	devm_kfree(dev, priv);
 	return ret;
 }
 
