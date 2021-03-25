@@ -865,11 +865,11 @@ static struct ep_td_struct *npcm_build_dtd(struct npcm_req *req, unsigned *lengt
         
         for (td_count=0; td_count < udc->dtd_max_pool; td_count++)
         {
-            dtd = (void *)(udc->dtd_virt_ba + 2*DTD_ALIGNMENT * td_count);
+            dtd = (void __iomem *)(udc->dtd_virt_ba + 2*DTD_ALIGNMENT * td_count);
             if (dtd->res == DTD_IS_FREE)
             {
                 dtd->res = DTD_IS_IN_USE;
-                *dma = (dma_addr_t)(udc->dtd_phys_ba + 2*DTD_ALIGNMENT * td_count);
+                *dma = (void __iomem *)(udc->dtd_phys_ba + 2*DTD_ALIGNMENT * td_count);
                 break;
             }            
         }
@@ -2844,14 +2844,14 @@ static int npcm_udc_probe(struct platform_device *pdev)
         struct ep_td_struct *dtd;
         
         size_of_queue_heads = sizeof(struct ep_queue_head) * udc_controller->max_ep;
-        udc_controller->dtd_phys_ba = (u32)udc_controller->ep_qh_dma + size_of_queue_heads;
-        udc_controller->dtd_virt_ba = (u32)udc_controller->ep_qh + size_of_queue_heads;
+        udc_controller->dtd_phys_ba = (void __iomem *)udc_controller->ep_qh_dma + size_of_queue_heads;
+        udc_controller->dtd_virt_ba = (void __iomem *)udc_controller->ep_qh + size_of_queue_heads;
 		udc_controller->dtd_max_pool = ((udc_controller->dtd_size - size_of_queue_heads) / (2 * DTD_ALIGNMENT));
 		VDBG("udc_controller->dtd_phys_ba 0x%x , udc_controller->dtd_virt_ba 0x%x udc_controller->dtd_max_pool %d\n",udc_controller->dtd_phys_ba,
 				udc_controller->dtd_virt_ba,udc_controller->dtd_max_pool);
         for (td_count=0; td_count < udc_controller->dtd_max_pool; td_count++)
         {
-            dtd = (void *)(udc_controller->dtd_virt_ba + 2*DTD_ALIGNMENT * td_count);
+            dtd = (void __iomem *)(udc_controller->dtd_virt_ba + 2*DTD_ALIGNMENT * td_count);
             dtd->res = DTD_IS_FREE;          
         }
     }
@@ -2936,7 +2936,7 @@ static int npcm_udc_remove(struct platform_device *pdev)
         
         for (td_count=0; td_count < udc_controller->dtd_max_pool; td_count++)
         {
-            dtd = (void *)(udc_controller->dtd_virt_ba + 2*DTD_ALIGNMENT * td_count);
+            dtd = (void __iomem *)(udc_controller->dtd_virt_ba + 2*DTD_ALIGNMENT * td_count);
             dtd->res = DTD_IS_FREE;          
         }
     }

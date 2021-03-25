@@ -568,8 +568,8 @@ struct npcm_udc {
 	struct ep_queue_head *ep_qh;	/* Endpoints Queue-Head */
 	struct npcm_req *status_req;	/* ep0 status request */
 #ifdef NPCM_USB_DESC_PHYS_BASE_ADDR
-    u32 dtd_virt_ba;
-    u32 dtd_phys_ba;
+    void __iomem *dtd_virt_ba;
+    void __iomem *dtd_phys_ba;
     u32 dtd_size;
     u32 dtd_max_pool;   /* defualt dtd number */
 #else
