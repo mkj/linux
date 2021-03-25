@@ -430,7 +430,7 @@ static const int spi1d23_pins[] = { 191, 192 };
 
 static const int j2j3_pins[] = { 44, 62, 45, 46 };
 
-static const int r3oen_pins[] = { 58 };
+static const int r3oen_pins[] = { 213 };
 static const int r2oen_pins[] = { 90 };
 static const int r1oen_pins[] = { 56 };
 static const int bu4b_pins[] = { 98, 99 };
@@ -438,7 +438,7 @@ static const int bu4_pins[] = { 54, 55 };
 static const int bu5b_pins[] = { 100, 101 };
 static const int bu5_pins[] = { 52, 53 };
 static const int bu6_pins[] = { 50, 51 };
-static const int rmii3_pins[] = { 110, 111, 209, 212, 211, 210, 214, 215 };
+static const int rmii3_pins[] = { 110, 111, 209, 211, 210, 214, 215 };
 
 static const int jm1_pins[] = { 136, 140 };
 static const int jm2_pins[] = { 0, 1, 2, 3 };
@@ -1614,7 +1614,7 @@ static const struct npcm8xx_pincfg pincfg[] = {
 	NPCM8XX_PINCFG(210,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	none, NONE, 0,		none, NONE, 0,		DS(8, 12) | SLEW),
 	NPCM8XX_PINCFG(211,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	none, NONE, 0,		none, NONE, 0,		DS(8, 12) | SLEW),
 	NPCM8XX_PINCFG(212,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	r3rxer, MFSEL6, 30,	none, NONE, 0,		none, NONE, 0,		DS(8, 12) | SLEW),
-	NPCM8XX_PINCFG(213,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 14,	none, NONE, 0,		none, NONE, 0,		DS(8, 12) | SLEW),
+	NPCM8XX_PINCFG(213,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	r3oen, MFSEL5, 14,	none, NONE, 0,		none, NONE, 0,		DS(8, 12) | SLEW),
 	NPCM8XX_PINCFG(214,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	none, NONE, 0,		none, NONE, 0,		DS(8, 12) | SLEW),
 	NPCM8XX_PINCFG(215,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	none, NONE, 0,		none, NONE, 0,		DS(8, 12) | SLEW),
 	NPCM8XX_PINCFG(216,	rg2mdio, MFSEL4, 23,	ddr, MFSEL3, 26,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DS(8, 12) | SLEW),
