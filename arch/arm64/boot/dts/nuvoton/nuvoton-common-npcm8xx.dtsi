@@ -53,6 +53,20 @@
 		clock-output-names = "clk_rg2refck";
 	};
 
+	clk_r1refck: clk-r1refck {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <50000000>;
+		clock-output-names = "clk_r1refck";
+	};
+
+	clk_r2refck: clk-r2refck {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <50000000>;
+		clock-output-names = "clk_r2refck";
+	};
+
 	clk_xin: clk-xin {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -123,15 +137,15 @@
 
 		gmac0: eth@f0802000 {
 			device_type = "network";
-			compatible = "snps,dwmac";
-			reg = <0x0 0xf0802000 0x0 0x2000>;
+			compatible = "snps,npcm";
+			reg = <0x0 0xf0802000 0x0 0x2000>,
+				<0x0 0xf0780000 0x0 0x200>;
 			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
 			clocks	= <&clk_rg1refck>, <&clk NPCM8XX_CLK_AHB>;
 			clock-names = "stmmaceth", "clk_gmac";
 			pinctrl-names = "default";
-			pinctrl-0 = <&rg1_pins
-					&rg1mdio_pins>;
+			pinctrl-0 = <&rg1mdio_pins>;
 			status = "disabled";
 		};
 
@@ -155,10 +169,11 @@
 			reg = <0x0 0xf0806000 0x0 0x2000>;
 			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			clocks	= <&clk_rg1refck>, <&clk NPCM8XX_CLK_AHB>;
+			clocks	= <&clk_r1refck>, <&clk NPCM8XX_CLK_AHB>;
 			clock-names = "stmmaceth", "clk_gmac";
 			pinctrl-names = "default";
 			pinctrl-0 = <&r1_pins
+					&r1err_pins
 					&r1md_pins>;
 			status = "disabled";
 		};
@@ -169,10 +184,11 @@
 			reg = <0x0 0xf0808000 0x0 0x2000>;
 			interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			clocks	= <&clk_rg1refck>, <&clk NPCM8XX_CLK_AHB>;
+			clocks	= <&clk_r2refck>, <&clk NPCM8XX_CLK_AHB>;
 			clock-names = "stmmaceth", "clk_gmac";
 			pinctrl-names = "default";
 			pinctrl-0 = <&r2_pins
+					&r2err_pins
 					&r2md_pins>;
 			status = "disabled";
 		};
@@ -919,6 +935,22 @@
 			groups = "r1md";
 			function = "r1md";
 		};
+		r1oen_pins: r1oen-pins {
+			groups = "r1oen";
+			function = "r1oen";
+		};
+		r2oen_pins: r2oen-pins {
+			groups = "r2oen";
+			function = "r2oen";
+		};
+		rmii3_pins: rmii3_pins {
+			groups = "rmii3";
+			function = "rmii3";
+		};
+		r3oen_pins: r3oen-pins {
+			groups = "r3oen";
+			function = "r3oen";
+		};
 		smb3d_pins: smb3d-pins {
 			groups = "smb3d";
 			function = "smb3d";
@@ -1014,6 +1046,10 @@
 		r2md_pins: r2md-pins {
 			groups = "r2md";
 			function = "r2md";
+		};
+		r3rxer_pins: r3rxer_pins {
+			groups = "r3rxer";
+			function = "r3rxer";
 		};
 		ga20kbc_pins: ga20kbc-pins {
 			groups = "ga20kbc";

@@ -19,6 +19,8 @@
 		ethernet1 = &gmac1;
 		ethernet2 = &gmac2;
 		ethernet3 = &gmac3;
+		mdio-gpio0 = &mdio0;
+		mdio-gpio1 = &mdio1;
 		udc0 = &udc0;
 		udc1 = &udc1;
 		udc2 = &udc2;
@@ -57,13 +59,43 @@
 			status = "okay";
 		};
 
+		mdio0: mdio@0 {
+			compatible = "virtual,mdio-gpio";
+			gpios = <&gpio1 25 GPIO_ACTIVE_HIGH>,
+				<&gpio1 26 GPIO_ACTIVE_HIGH>; 
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			phy0: ethernet-phy@1 {
+			};
+		};
+
 		gmac2: eth@f0806000 {
 			phy-mode = "rmii";
+			pinctrl-names = "default";
+			pinctrl-0 = <&r1_pins
+					&r1oen_pins>;
+			phy-handle = <&phy0>;
 			status = "okay";
+		};
+
+		mdio1: mdio@1 {
+			compatible = "virtual,mdio-gpio";
+			gpios = <&gpio2 27 GPIO_ACTIVE_HIGH>, 
+				<&gpio2 28 GPIO_ACTIVE_HIGH>; 
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			phy1: ethernet-phy@1 {
+			};
 		};
 
 		gmac3: eth@f0808000 {
 			phy-mode = "rmii";
+			pinctrl-names = "default";
+			pinctrl-0 = <&r2_pins
+					&r2oen_pins>;
+			phy-handle = <&phy1>;
 			status = "okay";
 		};
 

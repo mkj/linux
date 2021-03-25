@@ -74,7 +74,7 @@
 		udc0:udc@f0830000 {
 			compatible = "nuvoton,npcm750-udc";
 			reg = <0x0 0xf0830000 0x0 0x1000
-			       0x0 0xfffd0000 0x0 0x800>;
+			       0x0 0xfffb0000 0x0 0x800>;
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk NPCM8XX_CLK_SU>;
 			clock-names = "clk_usb_bridge";
@@ -83,7 +83,7 @@
 		udc1:udc@f0831000 {
 			compatible = "nuvoton,npcm750-udc";
 			reg = <0x0 0xf0831000 0x0 0x1000
-			       0x0 0xfffd0800 0x0 0x800>;
+			       0x0 0xfffb0800 0x0 0x800>;
 			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk NPCM8XX_CLK_SU>;
 			clock-names = "clk_usb_bridge";
@@ -92,7 +92,7 @@
 		udc2:udc@f0832000 {
 			compatible = "nuvoton,npcm750-udc";
 			reg = <0x0 0xf0832000 0x0 0x1000
-			       0x0 0xfffd1000 0x0 0x800>;
+			       0x0 0xfffb1000 0x0 0x800>;
 			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk NPCM8XX_CLK_SU>;
 			clock-names = "clk_usb_bridge";
@@ -101,7 +101,7 @@
 		udc3:udc@f0833000 {
 			compatible = "nuvoton,npcm750-udc";
 			reg = <0x0 0xf0833000 0x0 0x1000
-			       0x0 0xfffd1800 0x0 0x800>;
+			       0x0 0xfffb1800 0x0 0x800>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk NPCM8XX_CLK_SU>;
 			clock-names = "clk_usb_bridge";
@@ -110,7 +110,7 @@
 		udc4:udc@f0834000 {
 			compatible = "nuvoton,npcm750-udc";
 			reg = <0x0 0xf0834000 0x0 0x1000
-			       0x0 0xfffd2000 0x0 0x800>;
+			       0x0 0xfffb2000 0x0 0x800>;
 			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk NPCM8XX_CLK_SU>;
 			clock-names = "clk_usb_bridge";
@@ -119,7 +119,7 @@
 		udc5:udc@f0835000 {
 			compatible = "nuvoton,npcm750-udc";
 			reg = <0x0 0xf0835000 0x0 0x1000
-			       0x0 0xfffd2800 0x0 0x800>;
+			       0x0 0xfffb2800 0x0 0x800>;
 			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk NPCM8XX_CLK_SU>;
 			clock-names = "clk_usb_bridge";
@@ -128,7 +128,7 @@
 		udc6:udc@f0836000 {
 			compatible = "nuvoton,npcm750-udc";
 			reg = <0x0 0xf0836000 0x0 0x1000
-			       0x0 0xfffd3000 0x0 0x800>;
+			       0x0 0xfffb3000 0x0 0x800>;
 			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk NPCM8XX_CLK_SU>;
 			clock-names = "clk_usb_bridge";
@@ -137,7 +137,7 @@
 		udc7:udc@f0837000 {
 			compatible = "nuvoton,npcm750-udc";
 			reg = <0x0 0xf0837000 0x0 0x1000
-			       0x0 0xfffd3800 0x0 0x800>;
+			       0x0 0xfffb3800 0x0 0x800>;
 			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk NPCM8XX_CLK_SU>;
 			clock-names = "clk_usb_bridge";
@@ -146,7 +146,7 @@
 		udc8:udc@f0838000 {
 			compatible = "nuvoton,npcm750-udc";
 			reg = <0x0 0xf0838000 0x0 0x1000
-			       0x0 0xfffd4000 0x0 0x800>;
+			       0x0 0xfffb4000 0x0 0x800>;
 			interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk NPCM8XX_CLK_SU>;
 			clock-names = "clk_usb_bridge";
@@ -155,7 +155,7 @@
 		udc9:udc@f0839000 {
 			compatible = "nuvoton,npcm750-udc";
 			reg = <0x0 0xf0839000 0x0 0x1000
-			       0x0 0xfffd4800 0x0 0x800>;
+			       0x0 0xfffb4800 0x0 0x800>;
 			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk NPCM8XX_CLK_SU>;
 			clock-names = "clk_usb_bridge";
