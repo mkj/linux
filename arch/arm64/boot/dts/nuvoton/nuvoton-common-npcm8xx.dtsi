@@ -294,6 +294,22 @@
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		vcd: vcd@f0810000 {
+			compatible = "nuvoton,npcm845-vcd";
+			reg = <0x0 0xf0810000 0x0 0x10000>;
+			interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+			gcr-syscon = <&gcr>;
+			gfxi-syscon = <&gfxi>;
+		};
+
+		ece: ece@f0820000 {
+			compatible = "nuvoton,npcm845-ece";
+			reg = <0x0 0xf0820000 0x0 0x2000>;
+			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		apb {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -705,6 +721,12 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&smb15_pins>;
 				status = "disabled";
+			};
+
+			gfxi: gfxi@e000 {
+				compatible = "nuvoton,npcm845-gfxi", "syscon",
+						"simple-mfd";
+				reg = <0xe000 0x100>;
 			};
 		};
 	};

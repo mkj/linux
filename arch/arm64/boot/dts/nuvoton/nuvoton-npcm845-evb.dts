@@ -45,6 +45,23 @@
 		reg = <0x0 0x0 0x0 0x40000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		vcd_memory: framebuffer@0x3e200000 {
+			reg = <0x0 0x3e200000  0x0 0x600000>;
+			no-map;
+		};
+
+		ece_memory: framebuffer@0x3e800000  {
+			reg = <0x0 0x3e800000  0x0 0x600000>;
+			no-map;
+		};
+
+	};
+
 	ahb {
 
 		gmac0: eth@f0802000 {
@@ -270,6 +287,16 @@
 		/*udc9:udc@f0839000 {
 			status = "okay";
 		};*/
+
+		vcd:vcd@f0810000 {
+			status = "okay";
+			memory-region = <&vcd_memory>;
+		};
+
+		ece:ece@f0820000 {
+			status = "okay";
+			memory-region = <&ece_memory>;
+		};
 
 		apb {
 			/*rstc: rstc@f0801000 {
