@@ -900,6 +900,16 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 		return PTR_ERR(data->fan_clk);
 	}
 
+	if (of_device_is_compatible(np, "nuvoton,npcm750-pwm-fan")) {
+		data->fan_module_max = NPCM7XX_FAN_MAX_MODULE;
+		data->pwm_module_max = NPCM7XX_PWM_MAX_MODULES;
+	}
+
+	if (of_device_is_compatible(np, "nuvoton,npcm845-pwm-fan")) {
+		data->fan_module_max = NPCM8XX_FAN_MAX_MODULE;
+		data->pwm_module_max = NPCM8XX_PWM_MAX_MODULES;
+	}
+
 	output_freq = npcm7xx_pwm_init(data);
 
 	for (cnt = 0; cnt < data->pwm_module_max  ; cnt++)
@@ -936,10 +946,8 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 		hwmon = devm_hwmon_device_register_with_info(dev, "npcm7xx_pwm_fan",
 							     data, &npcm7xx_chip_info,
 							     NULL);
-		data->fan_module_max = NPCM7XX_FAN_MAX_MODULE;
-		data->pwm_module_max = NPCM7XX_PWM_MAX_MODULES;
 		if (IS_ERR(hwmon)) {
-			dev_err(dev, "unable to register hwmon device\n");
+			dev_err(dev, "unable to register npcm7xx hwmon device\n");
 			return PTR_ERR(hwmon);
 		}
 	}
@@ -948,10 +956,8 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 		hwmon = devm_hwmon_device_register_with_info(dev, "npcm8xx_pwm_fan",
 							     data, &npcm8xx_chip_info,
 							     NULL);
-		data->fan_module_max = NPCM8XX_FAN_MAX_MODULE;
-		data->pwm_module_max = NPCM8XX_PWM_MAX_MODULES;
 		if (IS_ERR(hwmon)) {
-			dev_err(dev, "unable to register hwmon device\n");
+			dev_err(dev, "unable to register npcm8xx hwmon device\n");
 			return PTR_ERR(hwmon);
 		}
 	}
