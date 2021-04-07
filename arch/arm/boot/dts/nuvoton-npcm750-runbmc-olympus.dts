@@ -131,7 +131,7 @@
 			};
 			u-boot@0 {
 				label = "u-boot";
-				reg = <0x0000000 0x80000>;
+				reg = <0x0000000 0xC0000>;
 				read-only;
 			};
 			u-boot-env@100000{
