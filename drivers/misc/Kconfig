@@ -500,6 +500,12 @@ config NPCM7XX_MCU_FLASH
 	help
 	  Control GPIO to transmit SPI signals to support MCU firmware flash function.
 
+config NPCM8XX_JTAG_MASTER
+	tristate "NPCM8xx JTAG Master driver"
+	depends on (ARCH_NPCM || COMPILE_TEST)
+	help
+	  NPCM8xx JTAG Master Interfaces.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

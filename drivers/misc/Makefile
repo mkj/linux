@@ -61,5 +61,6 @@ obj-$(CONFIG_NPCM7XX_LPC_BPC)	+= npcm7xx-lpc-bpc.o
 obj-$(CONFIG_NPCM7XX_PCI_MBOX)	+= npcm7xx-pci-mbox.o
 obj-$(CONFIG_NPCM_VDM)		+= npcm-vdm/
 obj-$(CONFIG_NPCM7XX_JTAG_MASTER)	+= npcm7xx-jtag-master.o
+obj-$(CONFIG_NPCM8XX_JTAG_MASTER)	+= npcm8xx-jtag-master.o
 obj-$(CONFIG_MCTP_LPC)		+= mctp-lpc.o
 obj-$(CONFIG_NPCM7XX_MCU_FLASH) += npcm7xx-mcu-flash.o
