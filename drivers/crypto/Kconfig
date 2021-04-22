@@ -902,4 +902,14 @@ config CRYPTO_DEV_SA2UL
 	  used for crypto offload.  Select this if you want to use hardware
 	  acceleration for cryptographic algorithms on these devices.
 
+config CRYPTO_DEV_NPCM
+	bool "Support Nuvoton BMC NPCM HW crypto engines"
+	depends on ARCH_NPCM || COMPILE_TEST
+	select CRYPTO_AES
+	default n
+	help
+	  Support Nuvoton BMC NPCM HW crypto engines.
+
+source "drivers/crypto/npcm/Kconfig"
+
 endif # CRYPTO_HW
