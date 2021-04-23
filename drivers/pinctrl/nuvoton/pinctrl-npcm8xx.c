@@ -440,8 +440,8 @@ static const int bu5_pins[] = { 52, 53 };
 static const int bu6_pins[] = { 50, 51 };
 static const int rmii3_pins[] = { 110, 111, 209, 211, 210, 214, 215 };
 
-static const int jm1_pins[] = { 136, 140 };
-static const int jm2_pins[] = { 0, 1, 2, 3 };
+static const int jm1_pins[] = { 136, 137, 138, 139, 140 };
+static const int jm2_pins[] = { 251 };
 
 static const int tpgpio5b_pins[] = { 58 };
 static const int tpgpio4b_pins[] = { 57 };
@@ -1644,6 +1644,7 @@ static const struct npcm8xx_pincfg pincfg[] = {
 	NPCM8XX_PINCFG(245,	i3c2, MFSEL5, 21,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
 	NPCM8XX_PINCFG(246,	i3c3, MFSEL5, 23,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
 	NPCM8XX_PINCFG(247,	i3c3, MFSEL5, 23,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
+	NPCM8XX_PINCFG(251,	jm2, MFSEL5, 1,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
 	NPCM8XX_PINCFG(253,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPI), /* SDHC1 power */
 	NPCM8XX_PINCFG(254,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPI), /* SDHC2 power */
 	NPCM8XX_PINCFG(255,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPI), /* DACOSEL */
@@ -1895,6 +1896,7 @@ static const struct pinctrl_pin_desc npcm8xx_pins[] = {
 	PINCTRL_PIN(246, "GPIO246/I3C3_SCL"),
 	PINCTRL_PIN(247, "GPIO247/I3C3_SDA"),
 	PINCTRL_PIN(250, "GPIO250/RG2_REFCK/DVVSYNC"),
+	PINCTRL_PIN(251, "JM2/CP1_GPIO"),
 	};
 
 /* Enable mode in pin group */

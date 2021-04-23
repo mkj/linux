@@ -316,7 +316,8 @@
 			#size-cells = <1>;
 			compatible = "simple-bus";
 			interrupt-parent = <&gic>;
-			ranges = <0x0 0x0 0xf0000000 0x00300000>;
+			ranges = <0x0 0x0 0xf0000000 0x00300000>,
+				<0xfff00000 0x0 0xfff00000 0x00016000>;
 
 			lpc_kcs: lpc_kcs@7000 {
 				compatible = "nuvoton,npcm750-lpc-kcs",
@@ -389,6 +390,34 @@
 				clocks = <&clk NPCM8XX_CLK_APB5>;
 				clock-names = "clk_apb5";
 				resets = <&rstc NPCM8XX_RESET_IPSRST2 NPCM8XX_RESET_PSPI2>;
+				status = "disabled";
+			};
+
+			jtm1: jtm@208000 {
+				compatible = "nuvoton,npcm845-jtm";
+				reg = <0x208000 0x1000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&jm1_pins>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk NPCM8XX_CLK_APB5>;
+				clock-names = "clk_apb5";
+				resets = <&rstc NPCM8XX_RESET_IPSRST4 NPCM8XX_RESET_JTM1>;
+				status = "disabled";
+			};
+
+			jtm2: jtm@209000 {
+				compatible = "nuvoton,npcm845-jtm";
+				reg = <0x209000 0x1000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&jm2_pins>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk NPCM8XX_CLK_APB5>;
+				clock-names = "clk_apb5";
+				resets = <&rstc NPCM8XX_RESET_IPSRST4 NPCM8XX_RESET_JTM2>;
 				status = "disabled";
 			};
 
@@ -901,6 +930,14 @@
 		pspi2_pins: pspi2-pins {
 			groups = "pspi2";
 			function = "pspi2";
+		};
+		jm1_pins: jm1-pins {
+			groups = "jm1";
+			function = "jm1";
+		};
+		jm2_pins: jm2-pins {
+			groups = "jm2";
+			function = "jm2";
 		};
 		smb4den_pins: smb4den-pins {
 			groups = "smb4den";
