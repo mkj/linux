@@ -230,13 +230,29 @@
 #define INTCR3_GMMAP_512MB	0x00000200
 #define INTCR3_GMMAP_1GB	0x00000300
 #define INTCR3_GMMAP_2GB	0x00000400
-#endif
 
 #define ADDR_GMMAP_128MB	0x07000000
 #define ADDR_GMMAP_256MB	0x0f000000
 #define ADDR_GMMAP_512MB	0x1f000000
 #define ADDR_GMMAP_1GB		0x3f000000
 #define ADDR_GMMAP_2GB		0x7f000000
+#else
+#define INTCR4 0xC0
+#define INTCR4_GMMAP_MASK	GENMASK(22, 16)
+#define INTCR4_GMMAP_512MB	0x001F0000 //1F00_0000h to 1FFF_FFFFh
+#define INTCR4_GMMAP_512MB_ECC	0x001B0000 //1B00_0000h to 1BFF_FFFFh
+#define INTCR4_GMMAP_1GB	0x003F0000 //3F00_0000h to 3FFF_FFFFh
+#define INTCR4_GMMAP_1GB_ECC	0x00370000 //3700_0000h to 37FF_FFFFh
+#define INTCR4_GMMAP_2GB	0x007F0000 //7F00_0000h to 7FFF_FFFFh
+#define INTCR4_GMMAP_2GB_ECC	0x006F0000 //6F00_0000h to 6FFF_FFFFh
+
+#define ADDR_GMMAP_512MB	0x1F000000
+#define ADDR_GMMAP_512MB_ECC	0x1B000000
+#define ADDR_GMMAP_1GB	0x3F000000
+#define ADDR_GMMAP_1GB_ECC	0x37000000
+#define ADDR_GMMAP_2GB	0x7F000000
+#define ADDR_GMMAP_2GB_ECC	0x6F000000
+#endif
 
 /* Total 16MB, but 4MB preserved*/
 #define GMMAP_LENGTH	0xC00000
@@ -367,8 +383,8 @@ struct npcm_vcd {
 	struct regmap *vcd_regmap;
 	struct regmap *gcr_regmap;
 	struct regmap *gfx_regmap;
-	u32 size;
-	u32 dma;
+	resource_size_t size;
+	resource_size_t dma;
 	u32 rect_cnt;
 	u32 status;
 	char *video_name;
@@ -430,11 +446,11 @@ static void npcm_vcd_claer_gmmap(struct npcm_vcd *priv)
 {
 #ifdef CONFIG_ARCH_NPCM7XX
 	struct regmap *gcr = priv->gcr_regmap;
-	u32 intcr3, gmmap;
+	u32 intcr, gmmap;
 	void __iomem *baseptr;
 
-	regmap_read(gcr, INTCR3, &intcr3);
-	gmmap = (intcr3 & INTCR3_GMMAP_MASK);
+	regmap_read(gcr, INTCR3, &intcr);
+	gmmap = (intcr & INTCR3_GMMAP_MASK);
 
 	switch (gmmap){
 	case INTCR3_GMMAP_128MB:
@@ -1255,18 +1271,14 @@ static int
 npcm_vcd_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct npcm_vcd *priv = file->private_data;
-	u32 start;
-	u32 len;
 
 	if (!priv)
 		return -ENODEV;
 
-	start = priv->dma;
-	len = priv->size;
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
-	fb_pgprotect(file, vma, start);
+	fb_pgprotect(file, vma, priv->dma);
 
-	return vm_iomap_memory(vma, start, len);
+	return vm_iomap_memory(vma, priv->dma, priv->size);
 }
 
 static int
@@ -1495,7 +1507,40 @@ static const struct file_operations npcm_vcd_fops = {
 	.unlocked_ioctl = npcm_vcd_ioctl,
 };
 
-static int npcm_vcd_device_create(struct npcm_vcd *priv)
+static int npcm_gfx_ram(struct npcm_vcd *priv)
+{
+	int ret = 0;
+	struct resource resm;
+	struct device *dev = priv->dev;
+	struct device_node *node;
+	resource_size_t start, len;
+
+	node = of_parse_phandle(dev->of_node, "memory-region", 1);
+	if (node) {
+		ret = of_address_to_resource(node, 0, &resm);
+		of_node_put(node);
+		if (ret) {
+			dev_err(dev, "Couldn't address to resource for gfx reserved memory\n");
+			return -ENODEV;
+		}
+
+		len = (u32)resource_size(&resm);
+		start = (u32)resm.start;
+	} else {
+		dev_dbg(dev, "Cannnot find gfx memory-region\n");
+		return 0;
+	}
+
+	if (!devm_request_mem_region(dev, start, len, "gfx_ram")) {
+		dev_err(dev, "can't reserve gfx ram start 0x%x size 0x%x\n", start, len);
+		return -ENXIO;
+	}
+
+	dev_info(dev, "Reserved GFX memory start 0x%x size 0x%x\n", start, len);
+	return 0;
+}
+
+static int npcm_vcd_ram(struct npcm_vcd *priv)
 {
 	int ret = 0;
 	struct resource resm;
@@ -1507,18 +1552,39 @@ static int npcm_vcd_device_create(struct npcm_vcd *priv)
 		ret = of_address_to_resource(node, 0, &resm);
 		of_node_put(node);
 		if (ret) {
-			dev_err(dev, "Couldn't address to resource for reserved memory\n");
+			dev_err(dev, "Couldn't address to resource for vcd reserved memory\n");
 			return -ENODEV;
 		}
 
 		priv->size = (u32)resource_size(&resm);
 		priv->dma = (u32)resm.start;
 	} else {
-		dev_err(dev, "Cannnot find memory-region\n");
+		dev_err(dev, "Cannnot find vcd memory-region\n");
 		return -ENODEV;
 	}
 
-	dev_info(dev, "Reserved memory start 0x%x size 0x%x\n", priv->dma, priv->size);
+	if (!devm_request_mem_region(dev, priv->dma, priv->size, "vcd_ram")) {
+		dev_err(dev, "can't reserve vcd ram\n");
+		return -ENXIO;
+	}
+
+	dev_info(dev, "Reserved VCD memory start 0x%x size 0x%x\n", priv->dma, priv->size);
+	return 0;
+}
+
+
+static int npcm_vcd_device_create(struct npcm_vcd *priv)
+{
+	int ret = 0;
+	struct device *dev = priv->dev;
+
+	ret = npcm_vcd_ram(priv);
+	if (ret)
+		goto err;
+
+	ret = npcm_gfx_ram(priv);
+	if (ret)
+		goto err;
 
 	ret = of_property_read_u32(dev->of_node,
 			     "de-mode", &priv->de_mode);
@@ -1558,7 +1624,6 @@ static int npcm_vcd_device_create(struct npcm_vcd *priv)
 	}
 
 	return 0;
-
 err:
 	return ret;
 }

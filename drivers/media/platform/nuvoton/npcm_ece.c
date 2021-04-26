@@ -107,15 +107,15 @@ struct ece_ioctl_cmd {
 };
 
 struct npcm_ece {
-	void *virt;
+	void __iomem	*virt;
 	struct regmap *ece_regmap;
 	struct mutex mlock; /* for ioctl*/
 	spinlock_t lock;	/*for irq*/
 	struct device *dev;
 	struct miscdevice miscdev;
 	struct cdev dev_cdev;
-	u32 size;
-	u32 dma;
+	resource_size_t size;
+	resource_size_t dma;
 	u32 line_pitch;
 	u32 enc_gap;
 	u32 status;
@@ -139,7 +139,7 @@ static u32 npcm_ece_read_rect_offset(struct npcm_ece *priv)
 	u32 offset;
 
 	regmap_read(ece, HEX_RECT_OFFSET, &offset);
-	return offset;
+	return offset & 0x003fffff;
 }
 
 /* Return data if a rectangle finished to be compressed */
@@ -148,7 +148,7 @@ static u32 npcm_ece_get_ed_size(struct npcm_ece *priv, u32 offset)
 	struct regmap *ece = priv->ece_regmap;
 	u32 size, gap;
 	int timeout;
-	char *buffer = priv->virt + offset;
+	void *__iomem buffer = priv->virt + offset;
 
 	timeout = wait_for_completion_interruptible_timeout(&priv->complete,
 		ECE_OP_TIMEOUT);
@@ -157,10 +157,7 @@ static u32 npcm_ece_get_ed_size(struct npcm_ece *priv, u32 offset)
 		return 0;
 	}
 
-	size = (u32)(buffer[0]
-			| (buffer[1] << 8)
-			| (buffer[2] << 16)
-			| (buffer[3] << 24));
+	size = (u32)readl(buffer);
 
 	regmap_read(ece, HEX_CTRL, &gap);
 	priv->enc_gap = (gap & HEX_CTRL_ENC_GAP) >> HEX_CTRL_ENC_GAP_OFFSET;
@@ -312,18 +309,13 @@ static int
 npcm_ece_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct npcm_ece *priv = file->private_data;
-	unsigned long start;
-	u32 len;
 
 	if (!priv)
 		return -ENODEV;
 
-	start = priv->dma;
-	len = priv->size;
-
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
-	fb_pgprotect(file, vma, start);
-	return vm_iomap_memory(vma, start, len);
+	fb_pgprotect(file, vma, priv->dma);
+	return vm_iomap_memory(vma, priv->dma, priv->size);
 }
 
 static int npcm_ece_open(struct inode *inode, struct file *file)
@@ -365,7 +357,6 @@ long npcm_ece_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 
 	switch (cmd) {
 	case ECE_IOCCLEAR_OFFSET:
-
 		npcm_ece_clear_rect_offset(priv);
 
 		break;
@@ -442,6 +433,10 @@ long npcm_ece_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		regmap_update_bits(ece,
 			DDA_CTRL, DDA_CTRL_INTEN, (u32)~DDA_CTRL_INTEN);
 
+#if 1
+		// WAR: Force to reset offset for npcm8xx
+		npcm_ece_clear_rect_offset(priv);
+#endif
 		if (ed_size == 0) {
 			err = -EFAULT;
 			break;
@@ -546,7 +541,12 @@ static int npcm_ece_device_create(struct npcm_ece *priv)
 		return -ENODEV;
 	}
 
-	dev_info(dev, "Reserved memory start 0x%x size 0x%x\n", priv->dma, priv->size);
+	dev_info(dev, "Reserved ECE memory start 0x%x size 0x%x\n", priv->dma, priv->size);
+
+	if (!devm_request_mem_region(dev, priv->dma, priv->size, "ece_ram")) {
+		dev_err(dev, "can't reserve ece ram\n");
+		return -ENXIO;
+	}
 
 	priv->virt = ioremap(priv->dma, priv->size);
 	if (!priv->virt) {

@@ -50,20 +50,23 @@
 		#size-cells = <2>;
 		ranges;
 
-		vcd_memory: framebuffer@0x3e200000 {
-			reg = <0x0 0x3e200000  0x0 0x600000>;
+		vcd_memory: framebuffer@0x35000000 {
+			reg = <0x0 0x35000000  0x0 0x600000>;
 			no-map;
 		};
 
-		ece_memory: framebuffer@0x3e800000  {
-			reg = <0x0 0x3e800000  0x0 0x600000>;
+		gfx_memory: framebuffer@0x37000000  {
+			reg = <0x0 0x37000000  0x0 0xc00000>;
 			no-map;
 		};
 
+		ece_memory: framebuffer@0x35600000  {
+			reg = <0x0 0x35600000  0x0 0x600000>;
+			no-map;
+		};
 	};
 
 	ahb {
-
 		gmac0: eth@f0802000 {
 			phy-mode = "rgmii-id";
 			snps,eee-force-disable;
@@ -290,7 +293,7 @@
 
 		vcd:vcd@f0810000 {
 			status = "okay";
-			memory-region = <&vcd_memory>;
+			memory-region = <&vcd_memory>, <&gfx_memory>;
 		};
 
 		ece:ece@f0820000 {
