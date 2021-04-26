@@ -224,7 +224,6 @@ static void npcm_set_overheat_thresholds(struct npcm_thermal_priv *tmps,
 					 int thresh_mc, int hyst_mc, 
 					 int channel)
 {
-	struct npcm_thrm_data *data = tmps->data;
 	int threshold, hysteresis;
 
 	threshold = clamp_val(thresh_mc, NPCM_THRM_TEMP_MIN, NPCM_THRM_TEMP_MAX);
@@ -242,7 +241,6 @@ static int npcm_configure_overheat_int(struct npcm_thermal_priv *tmps,
 {
 	/* Retrieve the critical trip point to enable the overheat interrupt */
 	const struct thermal_trip *trips = of_thermal_get_trip_points(tz);
-	int ret;
 	int ctl;
 	int i;
 
@@ -276,7 +274,6 @@ static int npcm_thermal_probe(struct platform_device *pdev)
 	struct thermal_zone_device *tz;
 	struct npcm_thermal_sensor *sensor;
 	struct device *dev = &pdev->dev;
-	struct npcm_drvdata *drvdata;
 	const struct of_device_id *match;
 	struct npcm_thermal_priv *priv;
 	int sensor_id, irq;
@@ -323,6 +320,8 @@ static int npcm_thermal_probe(struct platform_device *pdev)
 			}
 		}
 	}
+
+	npcm_thermal_initialize(priv);
 
 	 /* There is two channels for BMC */
 	for (sensor_id = 0; sensor_id < priv->data->max_channel; sensor_id++) {
