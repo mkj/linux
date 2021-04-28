@@ -628,7 +628,7 @@ static const int gspi_pins[] = { 12, 13, 14, 15 };
 static const int spix_pins[] = { 224, 225, 226, 227, 229, 230 };
 static const int spixcs1_pins[] = { 228 };
 
-static const int pspi1_pins[] = { 175, 176, 177 };
+static const int spi1_pins[] = { 175, 176, 177 };
 static const int pspi2_pins[] = { 17, 18, 19 };
 
 static const int spi0cs1_pins[] = { 32 };
@@ -868,7 +868,7 @@ struct npcm8xx_group {
 	NPCM8XX_GRP(jtag2), \
 	NPCM8XX_GRP(spix), \
 	NPCM8XX_GRP(spixcs1), \
-	NPCM8XX_GRP(pspi1), \
+	NPCM8XX_GRP(spi1), \
 	NPCM8XX_GRP(pspi2), \
 	NPCM8XX_GRP(ddc), \
 	NPCM8XX_GRP(clkreq), \
@@ -1117,7 +1117,7 @@ NPCM8XX_SFUNC(serirq);
 NPCM8XX_SFUNC(jtag2);
 NPCM8XX_SFUNC(spix);
 NPCM8XX_SFUNC(spixcs1);
-NPCM8XX_SFUNC(pspi1);
+NPCM8XX_SFUNC(spi1);
 NPCM8XX_SFUNC(pspi2);
 NPCM8XX_SFUNC(ddc);
 NPCM8XX_SFUNC(clkreq);
@@ -1341,7 +1341,7 @@ static struct npcm8xx_func npcm8xx_funcs[] = {
 	NPCM8XX_MKFUNC(jtag2),
 	NPCM8XX_MKFUNC(spix),
 	NPCM8XX_MKFUNC(spixcs1),
-	NPCM8XX_MKFUNC(pspi1),
+	NPCM8XX_MKFUNC(spi1),
 	NPCM8XX_MKFUNC(pspi2),
 	NPCM8XX_MKFUNC(ddc),
 	NPCM8XX_MKFUNC(clkreq),
@@ -1576,9 +1576,9 @@ static const struct npcm8xx_pincfg pincfg[] = {
 	NPCM8XX_PINCFG(172,	smb6, MFSEL3, 1,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
 	NPCM8XX_PINCFG(173,	smb7, MFSEL3, 2,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
 	NPCM8XX_PINCFG(174,	smb7, MFSEL3, 2,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(175,	pspi1, MFSEL3, 4,	faninx, MFSEL3, 3,	fm1, MFSEL6, 17,	none, NONE, 0,		none, NONE, 0,		DS(8, 12)),
-	NPCM8XX_PINCFG(176,	pspi1, MFSEL3, 4,	faninx, MFSEL3, 3,	fm1, MFSEL6, 17,	none, NONE, 0,		none, NONE, 0,		DS(8, 12)),
-	NPCM8XX_PINCFG(177,	pspi1, MFSEL3, 4,	faninx, MFSEL3, 3,	fm1, MFSEL6, 17,	none, NONE, 0,		none, NONE, 0,		DS(8, 12)),
+	NPCM8XX_PINCFG(175,	spi1, MFSEL3, 4,	faninx, MFSEL3, 3,	fm1, MFSEL6, 17,	none, NONE, 0,		none, NONE, 0,		DS(8, 12)),
+	NPCM8XX_PINCFG(176,	spi1, MFSEL3, 4,	faninx, MFSEL3, 3,	fm1, MFSEL6, 17,	none, NONE, 0,		none, NONE, 0,		DS(8, 12)),
+	NPCM8XX_PINCFG(177,	spi1, MFSEL3, 4,	faninx, MFSEL3, 3,	fm1, MFSEL6, 17,	none, NONE, 0,		none, NONE, 0,		DS(8, 12)),
 	NPCM8XX_PINCFG(178,	r1, MFSEL3, 9,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DS(8, 12) | SLEW),
 	NPCM8XX_PINCFG(179,	r1, MFSEL3, 9,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DS(8, 12) | SLEW),
 	NPCM8XX_PINCFG(180,	r1, MFSEL3, 9,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DS(8, 12) | SLEW),
