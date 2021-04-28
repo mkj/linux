@@ -63,10 +63,29 @@
 		ece_memory: framebuffer@0x35600000  {
 			reg = <0x0 0x35600000  0x0 0x600000>;
 			no-map;
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_vref_1_225: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "vref_1_225v";
+			regulator-min-microvolt = <1225000>;
+			regulator-max-microvolt = <1225000>;
+		};
+	};
+
 		};
 	};
 
 	ahb {
+		/*rstc: rstc@f0801000 {
+			nuvoton,sw-reset-number = <2>;
+		};*/
+
 		gmac0: eth@f0802000 {
 			phy-mode = "rgmii-id";
 			snps,eee-force-disable;
@@ -302,10 +321,6 @@
 		};
 
 		apb {
-			/*rstc: rstc@f0801000 {
-				nuvoton,sw-reset-number = <2>;
-			};*/
-
 			lpc_kcs: lpc_kcs@7000 {
 				kcs1: kcs1@0 {
 					status = "okay";
@@ -348,6 +363,9 @@
 			};
 
 			adc: adc@c000 {
+				/* enable external vref */
+				/*vref-supply = <&reg_vref_1_225>;*/
+				#io-channel-cells = <1>;
 				status = "okay";
 			};
 
@@ -410,7 +428,7 @@
 			};
 
 			spi1: spi@201000 {
-				cs-gpios = <&gpio2 17 GPIO_ACTIVE_LOW>;
+				cs-gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
 				status = "okay";
 				Flash@0 {
 					compatible = "jedec,spi-nor";

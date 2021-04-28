@@ -72,7 +72,7 @@
 
 	ahb {
 		udc0:udc@f0830000 {
-			compatible = "nuvoton,npcm750-udc";
+			compatible = "nuvoton,npcm845-udc";
 			reg = <0x0 0xf0830000 0x0 0x1000
 			       0x0 0xfffb0000 0x0 0x800>;
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
@@ -81,7 +81,7 @@
 		};
 
 		udc1:udc@f0831000 {
-			compatible = "nuvoton,npcm750-udc";
+			compatible = "nuvoton,npcm845-udc";
 			reg = <0x0 0xf0831000 0x0 0x1000
 			       0x0 0xfffb0800 0x0 0x800>;
 			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
@@ -90,7 +90,7 @@
 		};
 
 		udc2:udc@f0832000 {
-			compatible = "nuvoton,npcm750-udc";
+			compatible = "nuvoton,npcm845-udc";
 			reg = <0x0 0xf0832000 0x0 0x1000
 			       0x0 0xfffb1000 0x0 0x800>;
 			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
@@ -99,7 +99,7 @@
 		};
 
 		udc3:udc@f0833000 {
-			compatible = "nuvoton,npcm750-udc";
+			compatible = "nuvoton,npcm845-udc";
 			reg = <0x0 0xf0833000 0x0 0x1000
 			       0x0 0xfffb1800 0x0 0x800>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
@@ -108,7 +108,7 @@
 		};
 
 		udc4:udc@f0834000 {
-			compatible = "nuvoton,npcm750-udc";
+			compatible = "nuvoton,npcm845-udc";
 			reg = <0x0 0xf0834000 0x0 0x1000
 			       0x0 0xfffb2000 0x0 0x800>;
 			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
@@ -117,7 +117,7 @@
 		};
 
 		udc5:udc@f0835000 {
-			compatible = "nuvoton,npcm750-udc";
+			compatible = "nuvoton,npcm845-udc";
 			reg = <0x0 0xf0835000 0x0 0x1000
 			       0x0 0xfffb2800 0x0 0x800>;
 			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
@@ -126,7 +126,7 @@
 		};
 
 		udc6:udc@f0836000 {
-			compatible = "nuvoton,npcm750-udc";
+			compatible = "nuvoton,npcm845-udc";
 			reg = <0x0 0xf0836000 0x0 0x1000
 			       0x0 0xfffb3000 0x0 0x800>;
 			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
@@ -135,7 +135,7 @@
 		};
 
 		udc7:udc@f0837000 {
-			compatible = "nuvoton,npcm750-udc";
+			compatible = "nuvoton,npcm845-udc";
 			reg = <0x0 0xf0837000 0x0 0x1000
 			       0x0 0xfffb3800 0x0 0x800>;
 			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
@@ -144,7 +144,7 @@
 		};
 
 		udc8:udc@f0838000 {
-			compatible = "nuvoton,npcm750-udc";
+			compatible = "nuvoton,npcm845-udc";
 			reg = <0x0 0xf0838000 0x0 0x1000
 			       0x0 0xfffb4000 0x0 0x800>;
 			interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
@@ -153,7 +153,7 @@
 		};
 
 		udc9:udc@f0839000 {
-			compatible = "nuvoton,npcm750-udc";
+			compatible = "nuvoton,npcm845-udc";
 			reg = <0x0 0xf0839000 0x0 0x1000
 			       0x0 0xfffb4800 0x0 0x800>;
 			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;

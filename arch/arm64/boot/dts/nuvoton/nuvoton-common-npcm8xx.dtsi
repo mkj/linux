@@ -93,10 +93,10 @@
 			reg = <0x0 0xf0801000 0x0 0xC4>;
 		};
 
-		fuse:fuse@f018a000 {
-			compatible = "nuvoton,npcm750-fuse", "syscon",
+		fuse:fuse@f0189000 {
+			compatible = "nuvoton,npcm845-fuse", "syscon",
 				"simple-mfd";
-			reg = <0x0 0xf018a000 0x0 0x1000>;
+			reg = <0x0 0xf0189000 0x0 0x1000>;
 		};
 
 		gic: interrupt-controller@dfff9000 {
@@ -250,7 +250,7 @@
 			clocks = <&clk NPCM8XX_CLK_SPI1>;
 			clock-names = "clk_spi1";
 			pinctrl-names = "default";
-			pinctrl-0 = <&spi3_pins>;
+			pinctrl-0 = <&spi1_pins>;
 			status = "disabled";
 		};
 
@@ -1307,9 +1307,9 @@
 			groups = "smb7";
 			function = "smb7";
 		};
-		pspi1_pins: pspi1-pins {
-			groups = "pspi1";
-			function = "pspi1";
+		spi1_pins: spi1-pins {
+			groups = "spi1";
+			function = "spi1";
 		};
 		faninx_pins: faninx-pins {
 			groups = "faninx";
