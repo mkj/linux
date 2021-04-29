@@ -577,6 +577,84 @@
 				status = "disabled";
 			};
 
+			i3c0: i3c@fff10000 {
+				compatible = "nuvoton,npcm845-i3c";
+				reg = <0xfff10000 0x1000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i3c0_pins>;
+				clocks = <&clk NPCM8XX_CLK_AHB>, <&clk NPCM8XX_CLK_RCP>;
+				clock-names = "pclk", "fast_clk";
+				interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <3>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			i3c1: i3c@fff11000 {
+				compatible = "nuvoton,npcm845-i3c";
+				reg = <0xfff11000 0x1000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i3c1_pins>;
+				clocks = <&clk NPCM8XX_CLK_AHB>, <&clk NPCM8XX_CLK_RCP>;
+				clock-names = "pclk", "fast_clk";
+				interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <3>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			i3c2: i3c@fff12000 {
+				compatible = "nuvoton,npcm845-i3c";
+				reg = <0xfff12000 0x1000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i3c2_pins>;
+				clocks = <&clk NPCM8XX_CLK_AHB>, <&clk NPCM8XX_CLK_RCP>;
+				clock-names = "pclk", "fast_clk";
+				interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <3>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			i3c3: i3c@fff13000 {
+				compatible = "nuvoton,npcm845-i3c";
+				reg = <0xfff13000 0x1000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i3c3_pins>;
+				clocks = <&clk NPCM8XX_CLK_AHB>, <&clk NPCM8XX_CLK_RCP>;
+				clock-names = "pclk", "fast_clk";
+				interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <3>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			i3c4: i3c@fff14000 {
+				compatible = "nuvoton,npcm845-i3c";
+				reg = <0xfff14000 0x1000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i3c4_pins>;
+				clocks = <&clk NPCM8XX_CLK_AHB>, <&clk NPCM8XX_CLK_RCP>;
+				clock-names = "pclk", "fast_clk";
+				interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <3>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			i3c5: i3c@fff15000 {
+				compatible = "nuvoton,npcm845-i3c";
+				reg = <0xfff15000 0x1000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i3c5_pins>;
+				clocks = <&clk NPCM8XX_CLK_AHB>, <&clk NPCM8XX_CLK_RCP>;
+				clock-names = "pclk", "fast_clk";
+				interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <3>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
 			i2c0: i2c@80000 {
 				reg = <0x80000 0x1000>;
 				compatible = "nuvoton,npcm845-i2c";
@@ -1174,6 +1252,30 @@
 		ddr_pins: ddr-pins {
 			groups = "ddr";
 			function = "ddr";
+		};
+		i3c0_pins: i3c0-pins {
+			groups = "i3c0";
+			function = "i3c0";
+		};
+		i3c1_pins: i3c1-pins {
+			groups = "i3c1";
+			function = "i3c1";
+		};
+		i3c2_pins: i3c2-pins {
+			groups = "i3c2";
+			function = "i3c2";
+		};
+		i3c3_pins: i3c3-pins {
+			groups = "i3c3";
+			function = "i3c3";
+		};
+		i3c4_pins: i3c4-pins {
+			groups = "i3c4";
+			function = "i3c4";
+		};
+		i3c5_pins: i3c5-pins {
+			groups = "i3c5";
+			function = "i3c5";
 		};
 		smb0_pins: smb0-pins {
 			groups = "smb0";

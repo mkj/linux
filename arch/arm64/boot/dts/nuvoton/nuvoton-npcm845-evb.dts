@@ -446,6 +446,22 @@
 			jtm1: jtm@208000 {
 				status = "okay";
 			};
+
+			i3c0: i3c@fff10000 {
+				status = "okay";
+				i2c-scl-hz = <400000>;
+				i3c-scl-hz = <4000000>;
+				sensor0@0x5c {
+					compatible = "st,lps22hh";
+					reg = <0x5c 0x0 0x20>;
+				};
+			};
+
+			i3c1: i3c@fff11000 {
+				status = "okay";
+				i2c-scl-hz = <400000>;
+				i3c-scl-hz = <4000000>;
+			};
 		};
 	};
 
