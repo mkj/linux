@@ -330,7 +330,7 @@
 				ranges = <0x0 0x7000 0x40>;
 
 				kcs1: kcs1@0 {
-					compatible = "nuvoton,npcm750-kcs-bmc";
+					compatible = "nuvoton,npcm845-kcs-bmc";
 					reg = <0x0 0x40>;
 					interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 					kcs_chan = <1>;
@@ -338,7 +338,7 @@
 				};
 
 				kcs2: kcs2@0 {
-					compatible = "nuvoton,npcm750-kcs-bmc";
+					compatible = "nuvoton,npcm845-kcs-bmc";
 					reg = <0x0 0x40>;
 					interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 					kcs_chan = <2>;
@@ -346,7 +346,7 @@
 				};
 
 				kcs3: kcs3@0 {
-					compatible = "nuvoton,npcm750-kcs-bmc";
+					compatible = "nuvoton,npcm845-kcs-bmc";
 					reg = <0x0 0x40>;
 					interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 					kcs_chan = <3>;
