@@ -215,21 +215,51 @@ static int stmmac_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 		}
 	}
 
-	if (readl_poll_timeout(priv->ioaddr + mii_address, v, !(v & MII_BUSY),
-			       100, 10000))
-		return -EBUSY;
+	if (!priv->plat->arbel_rev_a) {
+		if (readl_poll_timeout(priv->ioaddr + mii_address, v, !(v & MII_BUSY),
+				       100, 10000))
+			return -EBUSY;
 
-	writel(data, priv->ioaddr + mii_data);
-	writel(value, priv->ioaddr + mii_address);
+		writel(data, priv->ioaddr + mii_data);
+		writel(value, priv->ioaddr + mii_address);
 
-	if (readl_poll_timeout(priv->ioaddr + mii_address, v, !(v & MII_BUSY),
-			       100, 10000))
-		return -EBUSY;
+		if (readl_poll_timeout(priv->ioaddr + mii_address, v, !(v & MII_BUSY),
+				       100, 10000))
+			return -EBUSY;
 
-	/* Read the data from the MII data register */
-	data = (int)readl(priv->ioaddr + mii_data) & MII_DATA_MASK;
+		/* Read the data from the MII data register */
+		data = (int)readl(priv->ioaddr + mii_data) & MII_DATA_MASK;
 
-	return data;
+		return data;
+	} else {
+		int i, j, testdata[3];
+
+		for (j =0; j < 10; j++) {
+			for (i = 0; i < 3; i++) {
+				testdata[i] = 0;
+
+				if (readl_poll_timeout(priv->ioaddr + mii_address, v, !(v & MII_BUSY),
+						       100, 10000))
+					return -EBUSY;
+
+				writel(testdata[i], priv->ioaddr + mii_data);
+				writel(value, priv->ioaddr + mii_address);
+
+				if (readl_poll_timeout(priv->ioaddr + mii_address, v, !(v & MII_BUSY),
+						       100, 10000))
+					return -EBUSY;
+
+				testdata[i] = (int)readl(priv->ioaddr + mii_data) & MII_DATA_MASK;
+			}
+
+			if (testdata[0] == testdata[1])
+				if (testdata[1] == testdata[2])
+					return testdata[0];
+		}
+	}
+
+	pr_info("Arbel EVB revision A read PHY failed!\n");
+	return -EBUSY;
 }
 
 /**
