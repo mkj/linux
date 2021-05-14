@@ -341,17 +341,24 @@ static int npcm_jtm_recv(struct npcm_jtm *priv, u32 cnt)
 
 	words = cnt / 32;
 	bytes = DIV_ROUND_UP((cnt % 32), 8);
-	for (n = 0; n < words; n++, buf32++)
-		*buf32 = readl(priv->base + JTM_TDI_IN(n));
+	for (n = 0; n < words; n++) {
+		val = readl(priv->base + JTM_TDI_IN(n));
+		if (buf32) {
+			*buf32 = val;
+			buf32++;
+		}
+	}
 
 	if (bytes) {
 		buf = (u8 *)buf32;
 		val = readl(priv->base + JTM_TDI_IN(n));
-		for (i = 0; i < bytes; i++)
-			buf[i] = (val >> (i * 8)) & 0xFF;
+		if (buf)
+			for (i = 0; i < bytes; i++)
+				buf[i] = (val >> (i * 8)) & 0xFF;
 	}
 	priv->rx_len -= cnt;
-	priv->rx_buf += cnt / 8;
+	if (priv->rx_buf)
+		priv->rx_buf += cnt / 8;
 
 	return 0;
 }
@@ -387,7 +394,7 @@ static int npcm_jtm_shift(struct npcm_jtm *priv, char *jtm_tdo,
 	unsigned long flags;
 	int ret = 0;
 
-	if (!jtm_tdo || !jtm_tdi || !tcks)
+	if (!jtm_tdo || !tcks)
 		return -EINVAL;
 
 	priv->tx_len = tcks;
@@ -510,7 +517,7 @@ static int jtag_bitbangs(struct npcm_jtm *jtag,
 static int jtag_transfer(struct npcm_jtm *jtag,
 			     struct jtag_xfer *xfer, u8 *jtm_tdo, u32 bytes)
 {
-	u8 *jtm_tdi;
+	u8 *jtm_tdi = NULL;
 	int ret;
 
 	if (xfer->length == 0)
