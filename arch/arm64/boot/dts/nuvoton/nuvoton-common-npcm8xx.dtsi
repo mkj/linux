@@ -142,8 +142,8 @@
 				<0x0 0xf0780000 0x0 0x200>;
 			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			clocks	= <&clk_rg1refck>, <&clk NPCM8XX_CLK_AHB>;
-			clock-names = "stmmaceth", "clk_gmac";
+			clocks	= <&clk NPCM8XX_CLK_AHB>;
+			clock-names = "stmmaceth";
 			pinctrl-names = "default";
 			pinctrl-0 = <&rg1mdio_pins>;
 			status = "disabled";
@@ -155,8 +155,8 @@
 			reg = <0x0 0xf0804000 0x0 0x2000>;
 			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			clocks	= <&clk_rg1refck>, <&clk NPCM8XX_CLK_AHB>;
-			clock-names = "stmmaceth", "clk_gmac";
+			clocks	= <&clk NPCM8XX_CLK_AHB>;
+			clock-names = "stmmaceth";
 			pinctrl-names = "default";
 			pinctrl-0 = <&rg2_pins
 					&rg2mdio_pins>;
@@ -169,8 +169,8 @@
 			reg = <0x0 0xf0806000 0x0 0x2000>;
 			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			clocks	= <&clk_r1refck>, <&clk NPCM8XX_CLK_AHB>;
-			clock-names = "stmmaceth", "clk_gmac";
+			clocks	= <&clk NPCM8XX_CLK_AHB>;
+			clock-names = "stmmaceth";
 			pinctrl-names = "default";
 			pinctrl-0 = <&r1_pins
 					&r1err_pins
@@ -184,8 +184,8 @@
 			reg = <0x0 0xf0808000 0x0 0x2000>;
 			interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			clocks	= <&clk_r2refck>, <&clk NPCM8XX_CLK_AHB>;
-			clock-names = "stmmaceth", "clk_gmac";
+			clocks	= <&clk NPCM8XX_CLK_AHB>;
+			clock-names = "stmmaceth";
 			pinctrl-names = "default";
 			pinctrl-0 = <&r2_pins
 					&r2err_pins
