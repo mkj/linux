@@ -5,7 +5,7 @@ menu "Nuvoton Miscellaneous optional drivers"
 
 config NPCM_VDM
 	tristate "support npcmx50 VDM on PCIe"
-	depends on ARCH_NPCM7XX
+	depends on ARCH_NPCM
 	default y
 	help
 	  Say Y here if you want ioctl npcmx50 VDM on PCIe.

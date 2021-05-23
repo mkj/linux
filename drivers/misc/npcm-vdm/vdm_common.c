@@ -45,7 +45,9 @@ void clear_reg_bit(int bit, void __iomem *reg)
 
 uint32_t vdma_rx_buff_size_int,*vdma_rx_buff,*vdma_rx_buff_virt_addr;
 static uint8_t ready_for_transmit=0;
+#ifndef CONFIG_ARM64
 extern void nano_delay(uint32_t nsec);
+#endif
 
 VDMA_STATUS_t vdma_is_data_ready(void)
 {
@@ -404,8 +406,11 @@ int vdm_SendMessage(uint8_t route_type, uint16_t aBDF,uint8_t  *apData,uint32_t 
 			if((read_reg_bit(VDM_TX_DONE_BIT_POS, vdm_virt_addr + VDM_STAT_REG) == 1) || vdm_is_in_reset())
 				break;
 			else
+#ifndef CONFIG_ARM64
 				nano_delay(100);
-
+#else
+				ndelay(100);
+#endif
 		}
 
 		iowrite32(1 << VDM_TX_DONE_BIT_POS, vdm_virt_addr + VDM_STAT_REG);// clear status
@@ -513,8 +518,10 @@ int vdm_init_common(uint32_t *apVdma_rx_buff,uint32_t *apVdma_rx_buff_virt_addr,
 
 	vdma_rx_buff_size_int   = (buff_size_in_16kb * (16384))/sizeof(uint32_t);
 
-	regmap_update_bits(gcr_regmap, PHY_SELECT_FOR_PCIE_BRIDGE_REG,
-			   BIT(PHY_SELECT_FOR_PCIE_BRIDGE_FIELD_POS), 0x0);
+	if (gcr_regmap)
+		regmap_update_bits(gcr_regmap, PHY_SELECT_FOR_PCIE_BRIDGE_REG,
+				   BIT(PHY_SELECT_FOR_PCIE_BRIDGE_FIELD_POS),
+				   0x0);
 
 	/****** configure VDM Module *********/
 	/*************************************************/

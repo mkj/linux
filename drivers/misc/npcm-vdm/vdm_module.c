@@ -41,6 +41,7 @@ void __iomem *vdma_virt_addr;
 
 static const struct of_device_id vdm_dt_npcm750_match[] = {
        { .compatible = "nuvoton,npcm750-vdm" },
+       { .compatible = "nuvoton,npcm845-vdm" },
        { /*sentinel*/ },
 };
 
@@ -130,13 +131,16 @@ static void reset_poll_routine(struct work_struct *irrelevant);
 static DECLARE_DELAYED_WORK(reset_poll_work, reset_poll_routine);
 static uint32_t vdm_data_for_platform;
 
+#ifndef CONFIG_ARM64
 extern void __loop_nanodelay(unsigned long usecs);
+#endif
 
 /*VDM DEBUG MACRO*/
 #define VDM_DEBUG_LOG(BDF, f, x...)                                                           \
 	if(vdm_debug_control && (BDF & vdm_bdf_debug_flag))                                   \
             printk(KERN_DEBUG "%s():line %d: ox%X" f, __func__, __LINE__,BDF,## x);                   \
 
+#ifndef CONFIG_ARM64
 /* function : ndelay
  *
  *
@@ -146,6 +150,7 @@ void nano_delay(uint32_t nsec)
 {
 	__loop_nanodelay(nsec);
 }
+#endif
 
 /* function : copy_to_user_wrapper
  *
@@ -1108,7 +1113,7 @@ static int vdm_init(void)
 		pr_info("\t\t\t of_address_to_resource fail ret %d \n",ret);
 		return -EINVAL;
 	}
-
+ 
 	vdma_virt_addr = ioremap(res.start, resource_size(&res));
 
 	if (!vdma_virt_addr) {
@@ -1121,6 +1126,8 @@ static int vdm_init(void)
 		if (IS_ERR(gcr_regmap)) {
 			pr_info("Failed to find nuvoton,npcm750-gcr WD reset status not supported\n");
 		}
+	} else {
+		gcr_regmap = NULL;
 	}
 #endif
 
