@@ -285,8 +285,12 @@ static int npcm_jtm_send(struct npcm_jtm *priv)
 	words = cnt / 32;
 	bytes = DIV_ROUND_UP((cnt % 32), 8);
 
-	for (n = 0; n < words; n++, tdo32++) {
-		writel(*tdo32, priv->base + JTM_TDO_OUT(n));
+	for (n = 0; n < words; n++) {
+		if (tdo32) {
+			writel(*tdo32, priv->base + JTM_TDO_OUT(n));
+			tdo32++;
+		} else
+			writel(0, priv->base + JTM_TDO_OUT(n));
 		if (priv->tms_buf) {
 			tmsval = *tms32;
 			tms32++;
@@ -304,7 +308,8 @@ static int npcm_jtm_send(struct npcm_jtm *priv)
 		val = 0;
 		tmsval = 0;
 		for (i = 0; i < bytes; i++) {
-			val |= tdo8[i] << (i * 8);
+			if (tdo8)
+				val |= tdo8[i] << (i * 8);
 			if (priv->tms_buf)
 				tmsval |= tms8[i] << (i * 8);
 		}
@@ -316,7 +321,8 @@ static int npcm_jtm_send(struct npcm_jtm *priv)
 
 	priv->ck_cnt = cnt;
 	priv->tx_len -= cnt;
-	priv->tx_buf += cnt / 8;
+	if (priv->tx_buf)
+		priv->tx_buf += cnt / 8;
 
 	/* Start */
 	val = readl(priv->base + JTM_CMD);
@@ -394,7 +400,7 @@ static int npcm_jtm_shift(struct npcm_jtm *priv, char *jtm_tdo,
 	unsigned long flags;
 	int ret = 0;
 
-	if (!jtm_tdo || !tcks)
+	if (!tcks)
 		return -EINVAL;
 
 	priv->tx_len = tcks;
@@ -562,20 +568,15 @@ static int jtag_runtest(struct npcm_jtm *jtag, unsigned int tcks)
 {
 	struct jtag_xfer xfer;
 	u32 bytes = DIV_ROUND_UP(tcks, BITS_PER_BYTE);
-	u8 *buf;
 	int ret;
 
-	buf = kzalloc(bytes, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
 	xfer.type = JTAG_RUNTEST_XFER;
 	xfer.direction = JTAG_WRITE_XFER;
 	xfer.from = JTAG_STATE_CURRENT;
 	xfer.endstate = jtagrti;
 	xfer.length = tcks;
 
-	ret = jtag_transfer(jtag, &xfer, buf, bytes);
-	kfree(buf);
+	ret = jtag_transfer(jtag, &xfer, NULL, bytes);
 
 	return ret;
 }
