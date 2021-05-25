@@ -2,4 +2,3 @@
 obj-$(CONFIG_CDNS_I3C_MASTER)		+= i3c-master-cdns.o
 obj-$(CONFIG_DW_I3C_MASTER)		+= dw-i3c-master.o
 obj-$(CONFIG_SVC_I3C_MASTER)		+= svc-i3c-master.o
-obj-$(CONFIG_NPCM8XX_I3C_MASTER)		+= i3c-master-npcm8xx.o
