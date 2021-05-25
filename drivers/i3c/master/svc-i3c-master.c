@@ -6,7 +6,7 @@
  * Author: Miquel RAYNAL <miquel.raynal@bootlin.com>
  * Based on a work from: Conor Culhane <conor.culhane@silvaco.com>
  */
-
+#define DEBUG
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
@@ -90,6 +90,7 @@
 #define SVC_I3C_MINTCLR      0x094
 #define SVC_I3C_MINTMASKED   0x098
 #define SVC_I3C_MERRWARN     0x09C
+#define   SVC_I3C_MERRWARN_NACK(x) FIELD_GET(BIT(2), (x))
 #define SVC_I3C_MDMACTRL     0x0A0
 #define SVC_I3C_MDATACTRL    0x0AC
 #define   SVC_I3C_MDATACTRL_FLUSHTB BIT(0)
@@ -192,6 +193,7 @@ struct svc_i3c_master {
 		/* Prevent races within IBI handlers */
 		spinlock_t lock;
 	} ibi;
+	bool registered;
 };
 
 /**
@@ -284,6 +286,14 @@ static void svc_i3c_master_clear_merrwarn(struct svc_i3c_master *master)
 	writel(readl(master->regs + SVC_I3C_MERRWARN),
 	       master->regs + SVC_I3C_MERRWARN);
 }
+
+static void svc_i3c_master_flush_fifo(struct svc_i3c_master *master)
+{
+	writel(readl(master->regs + SVC_I3C_MDATACTRL) |
+			SVC_I3C_MDATACTRL_FLUSHTB | SVC_I3C_MDATACTRL_FLUSHRB,
+			master->regs + SVC_I3C_MDATACTRL);
+}
+
 
 static int svc_i3c_master_handle_ibi(struct svc_i3c_master *master,
 				     struct i3c_dev_desc *dev)
@@ -431,8 +441,13 @@ static irqreturn_t svc_i3c_master_irq_handler(int irq, void *dev_id)
 	if (!SVC_I3C_MSTATUS_SLVSTART(active))
 		return IRQ_NONE;
 
+	dev_dbg(master->dev, "slvstart interrupt\n");
+
 	/* Clear the interrupt status */
 	writel(SVC_I3C_MINT_SLVSTART, master->regs + SVC_I3C_MSTATUS);
+
+	/* TODO: fix unexpected SLVSTART intterupt */
+	return IRQ_HANDLED;
 
 	svc_i3c_master_disable_interrupts(master);
 
@@ -448,60 +463,43 @@ static int svc_i3c_master_bus_init(struct i3c_master_controller *m)
 	struct i3c_bus *bus = i3c_master_get_bus(m);
 	struct i3c_device_info info = {};
 	unsigned long fclk_rate, fclk_period_ns;
-	unsigned int high_period_ns, od_low_period_ns;
+	unsigned int pp_high_period, od_low_period, i2c_period;
 	u32 ppbaud, pplow, odhpp, odbaud, i2cbaud, reg;
+	u32 freq, div;
 	int ret;
 
 	/* Timings derivation */
 	fclk_rate = clk_get_rate(master->fclk);
 	if (!fclk_rate)
 		return -EINVAL;
-
 	fclk_period_ns = DIV_ROUND_UP(1000000000, fclk_rate);
 
-	/*
-	 * Using I3C Push-Pull mode, target is 12.5MHz/80ns period.
-	 * Simplest configuration is using a 50% duty-cycle of 40ns.
-	 */
-	ppbaud = DIV_ROUND_UP(40, fclk_period_ns) - 1;
 	pplow = 0;
+	/* ppFreq = FCLK / 2 / (PPBAUD + 1)), 0 <= PPBAUD <= 15 */
+	freq = fclk_rate / 2;
+	div = DIV_ROUND_UP(freq, bus->scl_rate.i3c);
+	div = (div == 0) ? 1 : (div > 16) ? 16 : div;
+	ppbaud = div - 1;
+	freq /= div;
 
-	/*
-	 * Using I3C Open-Drain mode, target is 4.17MHz/240ns with a
-	 * duty-cycle tuned so that high levels are filetered out by
-	 * the 50ns filter (target being 40ns).
-	 */
 	odhpp = 1;
-	high_period_ns = (ppbaud + 1) * fclk_period_ns;
-	odbaud = DIV_ROUND_UP(240 - high_period_ns, high_period_ns) - 1;
-	od_low_period_ns = (odbaud + 1) * high_period_ns;
+	/* odFreq = ppFreq / (ODBAUD + 1), 1 <= ODBAUD <= 255 */
+	/* Let odFreq = ppFreq / 3 */
+	div = DIV_ROUND_UP(freq, (bus->scl_rate.i3c / 3));
+	div = (div < 2) ? 2 : (div > 256) ? 256 : div;
+	odbaud = div - 1;
 
-	switch (bus->mode) {
-	case I3C_BUS_MODE_PURE:
-		i2cbaud = 0;
-		break;
-	case I3C_BUS_MODE_MIXED_FAST:
-	case I3C_BUS_MODE_MIXED_LIMITED:
-		/*
-		 * Using I2C Fm+ mode, target is 1MHz/1000ns, the difference
-		 * between the high and low period does not really matter.
-		 */
-		i2cbaud = DIV_ROUND_UP(1000, od_low_period_ns) - 2;
-		break;
-	case I3C_BUS_MODE_MIXED_SLOW:
-		/*
-		 * Using I2C Fm mode, target is 0.4MHz/2500ns, with the same
-		 * constraints as the FM+ mode.
-		 */
-		i2cbaud = DIV_ROUND_UP(2500, od_low_period_ns) - 2;
-		break;
-	default:
-		return -EINVAL;
-	}
+	/* calcuate i2c_baud */
+	pp_high_period = (ppbaud + 1) * fclk_period_ns;
+	od_low_period = (odbaud + 1) * pp_high_period;
+	i2c_period = DIV_ROUND_UP(1000000000, bus->scl_rate.i2c);
+	div = DIV_ROUND_UP(i2c_period, od_low_period);
+	i2cbaud = div / 2;
+	i2cbaud = (i2cbaud % 2) ? (i2cbaud + 1) : i2cbaud;
 
 	reg = SVC_I3C_MCONFIG_MASTER_EN |
 	      SVC_I3C_MCONFIG_DISTO(0) |
-	      SVC_I3C_MCONFIG_HKEEP(0) |
+	      SVC_I3C_MCONFIG_HKEEP(3) |
 	      SVC_I3C_MCONFIG_ODSTOP(0) |
 	      SVC_I3C_MCONFIG_PPBAUD(ppbaud) |
 	      SVC_I3C_MCONFIG_PPLOW(pplow) |
@@ -511,6 +509,19 @@ static int svc_i3c_master_bus_init(struct i3c_master_controller *m)
 	      SVC_I3C_MCONFIG_I2CBAUD(i2cbaud);
 	writel(reg, master->regs + SVC_I3C_MCONFIG);
 
+	dev_dbg(master->dev, "fclk=%lu, period_ns=%lu\n", fclk_rate, fclk_period_ns);
+	dev_dbg(master->dev, "i3c scl_rate=%lu, i2c scl_rate=%lu\n",
+			bus->scl_rate.i3c, bus->scl_rate.i2c);
+	dev_dbg(master->dev, "ppbaud=%u, pplow=%u, odbaud=%u, i2cbaud=%u\n",
+			ppbaud, pplow, odbaud, i2cbaud);
+	dev_dbg(master->dev, "pp_high=%u, pp_low=%lu\n", pp_high_period,
+			(ppbaud + 1 + pplow) * fclk_period_ns);
+	dev_dbg(master->dev, "od_high=%d, od_low=%d\n", pp_high_period, od_low_period);
+	dev_dbg(master->dev, "i2c_low=%d\n", i2cbaud * od_low_period);
+	dev_dbg(master->dev, "mconfig=0x%x\n", readl(master->regs + SVC_I3C_MCONFIG));
+
+	if (master->registered)
+		return 0;
 	/* Master core's registration */
 	ret = i3c_master_get_free_addr(m, 0);
 	if (ret < 0)
@@ -525,7 +536,9 @@ static int svc_i3c_master_bus_init(struct i3c_master_controller *m)
 	if (ret)
 		return ret;
 
-	svc_i3c_master_enable_interrupts(master, SVC_I3C_MINT_SLVSTART);
+	master->registered = true;
+	/* TODO: fix unexpected SLVSTART intterupt */
+	/*svc_i3c_master_enable_interrupts(master, SVC_I3C_MINT_SLVSTART);*/
 
 	return 0;
 }
@@ -687,7 +700,7 @@ static int svc_i3c_master_do_daa_locked(struct svc_i3c_master *master,
 		 * Either one slave will send its ID, or the assignment process
 		 * is done.
 		 */
-		ret = readl_poll_timeout(master->regs + SVC_I3C_MSTATUS, reg,
+		ret = readl_poll_timeout_atomic(master->regs + SVC_I3C_MSTATUS, reg,
 					 SVC_I3C_MSTATUS_RXPEND(reg) |
 					 SVC_I3C_MSTATUS_MCTRLDONE(reg),
 					 1, 1000);
@@ -835,6 +848,7 @@ static int svc_i3c_master_do_daa(struct i3c_master_controller *m)
 	spin_lock_irqsave(&master->xferqueue.lock, flags);
 	ret = svc_i3c_master_do_daa_locked(master, addrs, &dev_nb);
 	spin_unlock_irqrestore(&master->xferqueue.lock, flags);
+	dev_dbg(master->dev, "daa: ret %d\n", ret);
 	if (ret)
 		goto emit_stop;
 
@@ -857,25 +871,34 @@ static int svc_i3c_master_do_daa(struct i3c_master_controller *m)
 emit_stop:
 	svc_i3c_master_emit_stop(master);
 	svc_i3c_master_clear_merrwarn(master);
-
-	return ret;
+	/* No Slave ACK: treat as normal */
+	if (ret == -EIO)
+		return 0;
+	else
+		return ret;
 }
 
 static int svc_i3c_master_read(struct svc_i3c_master *master,
-			       u8 *in, unsigned int len)
+			       u8 *in, unsigned int *len)
 {
 	int offset = 0, i, ret;
-	u32 mdctrl;
+	u32 mdctrl, reg;
 
-	while (offset < len) {
+	while (offset < *len) {
 		unsigned int count;
 
 		ret = readl_poll_timeout(master->regs + SVC_I3C_MDATACTRL,
 					 mdctrl,
 					 !(mdctrl & SVC_I3C_MDATACTRL_RXEMPTY),
 					 0, 1000);
-		if (ret)
-			return ret;
+		if (ret) {
+			reg = readl(master->regs + SVC_I3C_MSTATUS);
+			if (SVC_I3C_MSTATUS_COMPLETE(reg)) {
+				*len = offset;
+				return 0;
+			} else
+				return ret;
+		}
 
 		count = SVC_I3C_MDATACTRL_RXCOUNT(mdctrl);
 		for (i = 0; i < count; i++)
@@ -917,35 +940,70 @@ static int svc_i3c_master_write(struct svc_i3c_master *master,
 static int svc_i3c_master_xfer(struct svc_i3c_master *master,
 			       bool rnw, unsigned int xfer_type, u8 addr,
 			       u8 *in, const u8 *out, unsigned int xfer_len,
-			       unsigned int read_len, bool continued)
+			       unsigned int *read_len, bool continued)
 {
 	u32 reg;
 	int ret;
+
+	svc_i3c_master_flush_fifo(master);
+
+	/* pre-writing data to tx fifo if this is a write operation */
+	if (!rnw && (xfer_len > 0)) {
+		ret = readl_poll_timeout(master->regs + SVC_I3C_MDATACTRL,
+					 reg,
+					 !(reg & SVC_I3C_MDATACTRL_TXFULL),
+					 0, 1000);
+		if (ret)
+			return ret;
+
+		if (xfer_len == 1)
+			writel(out[0], master->regs + SVC_I3C_MWDATABE);
+		else
+			writel(out[0], master->regs + SVC_I3C_MWDATAB);
+		xfer_len--;
+		out++;
+	}
 
 	writel(SVC_I3C_MCTRL_REQUEST_START_ADDR |
 	       xfer_type |
 	       SVC_I3C_MCTRL_IBIRESP_NACK |
 	       SVC_I3C_MCTRL_DIR(rnw) |
 	       SVC_I3C_MCTRL_ADDR(addr) |
-	       SVC_I3C_MCTRL_RDTERM(read_len),
+	       SVC_I3C_MCTRL_RDTERM(*read_len),
 	       master->regs + SVC_I3C_MCTRL);
 
 	ret = readl_poll_timeout(master->regs + SVC_I3C_MSTATUS, reg,
 				 SVC_I3C_MSTATUS_MCTRLDONE(reg), 0, 1000);
-	if (ret)
+	if (ret) {
+		dev_err(master->dev, "mctrl timeout, addr 0x%x\n", addr);
 		goto emit_stop;
+	}
 
-	if (rnw)
-		ret = svc_i3c_master_read(master, in, xfer_len);
-	else
-		ret = svc_i3c_master_write(master, out, xfer_len);
-	if (ret)
+	reg = readl(master->regs + SVC_I3C_MSTATUS);
+	if (SVC_I3C_MSTATUS_NACKED(reg)) {
+		dev_dbg(master->dev, "addr 0x%x NACKEd\n", addr);
 		goto emit_stop;
+	}
+
+	if (rnw) {
+		if (*read_len > 0)
+			ret = svc_i3c_master_read(master, in, read_len);
+		else
+			ret = svc_i3c_master_read(master, in, &xfer_len);
+	} else
+		ret = svc_i3c_master_write(master, out, xfer_len);
+	if (ret) {
+		dev_err(master->dev, "dev addr 0x%x: %s timeout, xfer_len=%d\n",
+			addr, rnw?"read":"write", xfer_len);
+		goto emit_stop;
+	}
 
 	ret = readl_poll_timeout(master->regs + SVC_I3C_MSTATUS, reg,
 				 SVC_I3C_MSTATUS_COMPLETE(reg), 0, 1000);
-	if (ret)
+	if (ret) {
+		dev_err(master->dev, "dev addr 0x%x complete timeout\n", addr);
 		goto emit_stop;
+	}
 
 	if (!continued)
 		svc_i3c_master_emit_stop(master);
@@ -953,6 +1011,10 @@ static int svc_i3c_master_xfer(struct svc_i3c_master *master,
 	return 0;
 
 emit_stop:
+	svc_i3c_master_flush_fifo(master);
+	reg = readl(master->regs + SVC_I3C_MERRWARN);
+	if (SVC_I3C_MERRWARN_NACK(reg))
+		ret = I3C_ERROR_M2;
 	svc_i3c_master_emit_stop(master);
 	svc_i3c_master_clear_merrwarn(master);
 
@@ -1012,7 +1074,7 @@ static void svc_i3c_master_start_xfer_locked(struct svc_i3c_master *master)
 
 		ret = svc_i3c_master_xfer(master, cmd->rnw, xfer->type,
 					  cmd->addr, cmd->in, cmd->out,
-					  cmd->len, cmd->read_len,
+					  cmd->len, &cmd->read_len,
 					  cmd->continued);
 		if (ret)
 			break;
@@ -1092,8 +1154,10 @@ static int svc_i3c_master_send_bdcast_ccc_cmd(struct svc_i3c_master *master,
 	cmd->continued = false;
 
 	svc_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, msecs_to_jiffies(1000)))
+	if (!wait_for_completion_timeout(&xfer->comp, msecs_to_jiffies(1000))) {
 		svc_i3c_master_dequeue_xfer(master, xfer);
+		xfer->ret = -ETIMEDOUT;
+	}
 
 	ret = xfer->ret;
 	kfree(buf);
@@ -1141,6 +1205,10 @@ static int svc_i3c_master_send_direct_ccc_cmd(struct svc_i3c_master *master,
 	if (!wait_for_completion_timeout(&xfer->comp, msecs_to_jiffies(1000)))
 		svc_i3c_master_dequeue_xfer(master, xfer);
 
+	/* partial data is returned */
+	if (read_len && cmd->read_len < read_len)
+		ccc->dests[0].payload.len = cmd->read_len;
+
 	ret = xfer->ret;
 	svc_i3c_master_free_xfer(xfer);
 
@@ -1152,11 +1220,18 @@ static int svc_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 {
 	struct svc_i3c_master *master = to_svc_i3c_master(m);
 	bool broadcast = cmd->id < 0x80;
+	int ret;
 
 	if (broadcast)
-		return svc_i3c_master_send_bdcast_ccc_cmd(master, cmd);
+		ret = svc_i3c_master_send_bdcast_ccc_cmd(master, cmd);
 	else
-		return svc_i3c_master_send_direct_ccc_cmd(master, cmd);
+		ret = svc_i3c_master_send_direct_ccc_cmd(master, cmd);
+
+	if (ret != 0)
+		dev_dbg(master->dev, "send ccc 0x%02x %s, ret = %d\n",
+				cmd->id, broadcast ? "(broadcast)" : "", ret);
+
+	return ret;
 }
 
 static int svc_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
@@ -1373,7 +1448,7 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 
 	master->sclk = devm_clk_get(dev, "slow_clk");
 	if (IS_ERR(master->sclk))
-		return PTR_ERR(master->sclk);
+		master->sclk = NULL;
 
 	master->irq = platform_get_irq(pdev, 0);
 	if (master->irq <= 0)
@@ -1391,9 +1466,11 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_disable_pclk;
 
-	ret = clk_prepare_enable(master->sclk);
-	if (ret)
-		goto err_disable_fclk;
+	if (master->sclk) {
+		ret = clk_prepare_enable(master->sclk);
+		if (ret)
+			goto err_disable_fclk;
+	}
 
 	INIT_WORK(&master->hj_work, svc_i3c_master_hj_work);
 	INIT_WORK(&master->ibi_work, svc_i3c_master_ibi_work);
@@ -1425,10 +1502,14 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_disable_sclk;
 
+	dev_info(&pdev->dev, "probe OK\n");
+	/* TODO: fix unexpected SLVSTART intterupt */
+	svc_i3c_master_enable_interrupts(master, SVC_I3C_MINT_SLVSTART);
 	return 0;
 
 err_disable_sclk:
-	clk_disable_unprepare(master->sclk);
+	if (master->sclk)
+		clk_disable_unprepare(master->sclk);
 
 err_disable_fclk:
 	clk_disable_unprepare(master->fclk);
@@ -1451,7 +1532,8 @@ static int svc_i3c_master_remove(struct platform_device *pdev)
 	free_irq(master->irq, master);
 	clk_disable_unprepare(master->pclk);
 	clk_disable_unprepare(master->fclk);
-	clk_disable_unprepare(master->sclk);
+	if (master->sclk)
+		clk_disable_unprepare(master->sclk);
 
 	return 0;
 }
