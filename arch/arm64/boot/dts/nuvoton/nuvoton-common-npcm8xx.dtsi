@@ -578,7 +578,7 @@
 			};
 
 			i3c0: i3c@fff10000 {
-				compatible = "nuvoton,npcm845-i3c";
+				compatible = "silvaco,i3c-master";
 				reg = <0xfff10000 0x1000>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&i3c0_pins>;
@@ -591,7 +591,7 @@
 			};
 
 			i3c1: i3c@fff11000 {
-				compatible = "nuvoton,npcm845-i3c";
+				compatible = "silvaco,i3c-master";
 				reg = <0xfff11000 0x1000>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&i3c1_pins>;
@@ -604,7 +604,7 @@
 			};
 
 			i3c2: i3c@fff12000 {
-				compatible = "nuvoton,npcm845-i3c";
+				compatible = "silvaco,i3c-master";
 				reg = <0xfff12000 0x1000>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&i3c2_pins>;
@@ -617,7 +617,7 @@
 			};
 
 			i3c3: i3c@fff13000 {
-				compatible = "nuvoton,npcm845-i3c";
+				compatible = "silvaco,i3c-master";
 				reg = <0xfff13000 0x1000>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&i3c3_pins>;
@@ -630,7 +630,7 @@
 			};
 
 			i3c4: i3c@fff14000 {
-				compatible = "nuvoton,npcm845-i3c";
+				compatible = "silvaco,i3c-master";
 				reg = <0xfff14000 0x1000>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&i3c4_pins>;
@@ -643,7 +643,7 @@
 			};
 
 			i3c5: i3c@fff15000 {
-				compatible = "nuvoton,npcm845-i3c";
+				compatible = "silvaco,i3c-master";
 				reg = <0xfff15000 0x1000>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&i3c5_pins>;
