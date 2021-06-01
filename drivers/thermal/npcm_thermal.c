@@ -24,6 +24,7 @@
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include "thermal_core.h"
+#include "thermal_hwmon.h"
 
 /* NPCM7xx GCR module */
 #define NPCM8XX_THRTL_OFFSET		0xC0
@@ -351,6 +352,9 @@ static int npcm_thermal_probe(struct platform_device *pdev)
 		 */
 		if (irq > 0 && !priv->overheat_sensor)
 			npcm_configure_overheat_int(priv, tz, sensor->id);
+
+		if (devm_thermal_add_hwmon_sysfs(tz))
+			dev_warn(&pdev->dev, "failed to add hwmon sysfs attributes\n");
 
 	}
 
