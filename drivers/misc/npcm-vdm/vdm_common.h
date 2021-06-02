@@ -25,16 +25,35 @@
 #define VDM_RXNDW_FIELD_POS 			16
 #define VDM_RXNDW_FIELD_MASK 			0xff0000
 
+#ifndef CONFIG_ARM64
 #define VDM_INT_EN_REG				0x04
+#else
+#define VDM_INT_EN_REG				0x100
+#endif
+
 #define VDM_INT_EN_REG_RX_INT_BIT_POS		1
 
 #define PHYS_VDM_RXF_REG_ADDR			0xE0800008
+#ifndef CONFIG_ARM64
 #define VDM_RXF_REG_ADDR			0x08
+#else
+#define VDM_RXF_REG_ADDR			0x200
+#endif
+
 #define VDM_RXF_REG				VDM_RXF_REG_ADDR
 
+#ifndef CONFIG_ARM64
 #define VDM_TXF_REG				0x0C
+#else
+#define VDM_TXF_REG				0x300
+#endif
 
+#ifndef CONFIG_ARM64
 #define VDM_CNT_REG_ADDR			0x10
+#else
+#define VDM_CNT_REG_ADDR			0x400
+#endif
+
 #define VDM_CNT_REG				VDM_CNT_REG_ADDR
 
 #define VDM_CNT_REG_START_TX_BIT		0
@@ -43,7 +62,11 @@
 #define VDM_RX_TIMEOUT_FIELD_MASK 		0x70
 #define VDM_ENABLE_FIELD_POS			1
 
+#ifndef CONFIG_ARM64
 #define VDM_FLT_REG				0x14
+#else
+#define VDM_FLT_REG				0x500
+#endif
 #define VDM_FLT_REG_FLT_ENABLE_BIT_POS		31
 
 /******** vdma module defines **************/
