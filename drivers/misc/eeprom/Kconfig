@@ -129,4 +129,11 @@ config EEPROM_EE1004
 	  This driver can also be built as a module.  If so, the module
 	  will be called ee1004.
 
+config EEPROM_SPD5118
+	tristate "SPD5118 EEPROM on DDR5 memory modules"
+	depends on I3C && SYSFS
+	help
+	  Enable this driver to get read/write access to SPD5118 EEPROMs
+	  over I3C interface.
+
 endmenu
