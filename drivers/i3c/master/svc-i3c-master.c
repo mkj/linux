@@ -1504,7 +1504,7 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "probe OK\n");
 	/* TODO: fix unexpected SLVSTART intterupt */
-	svc_i3c_master_enable_interrupts(master, SVC_I3C_MINT_SLVSTART);
+	/*svc_i3c_master_enable_interrupts(master, SVC_I3C_MINT_SLVSTART);*/
 	return 0;
 
 err_disable_sclk:
