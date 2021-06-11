@@ -4,6 +4,7 @@
 
 /dts-v1/;
 #include "nuvoton-npcm845.dtsi"
+#include "nuvoton-npcm845-pincfg-evb.dtsi"
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -371,7 +372,7 @@
 			};
 
 			serial1: serial@1000 {
-				status = "disabled";
+				status = "okay";
 			};
 
 			serial2: serial@2000 {
@@ -494,6 +495,10 @@
 		pinctrl-0 = <
 				&jtag2_pins
 				&lpc_pins
+				&pin240_slew
+				&pin241_slew
+				&pin242_slew
+				&pin243_slew
 				&spix_pins>;
 	};
 };
@@ -537,9 +542,9 @@
 
 &i2c6 {
 	status = "okay";
-	tmp100@24 {
+	tmp100@48 {
 		compatible = "tmp100";
-		reg = <0x24>;
+		reg = <0x48>;
 		status = "okay";
 	};
 };
