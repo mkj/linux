@@ -173,7 +173,6 @@
 				compatible = "jedec,spi-nor";
 				#address-cells = <1>;
 				#size-cells = <1>;
-				spi-rx-bus-width = <2>;
 				reg = <0>;
 				spi-max-frequency = <5000000>;
 				partitions@80000000 {
@@ -256,7 +255,6 @@
 				compatible = "jedec,spi-nor";
 				#address-cells = <1>;
 				#size-cells = <1>;
-				spi-rx-bus-width = <2>;
 				reg = <0>;
 				spi-max-frequency = <5000000>;
 				partitions@A0000000 {
@@ -408,6 +406,15 @@
 
 			pwm_fan:pwm-fan-controller@103000 {
 				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pwm0_pins &pwm1_pins
+					&pwm2_pins &pwm3_pins
+					&pwm4_pins &pwm5_pins
+					&pwm6_pins &pwm7_pins
+					&fanin0_pins &fanin1_pins
+					&fanin2_pins &fanin3_pins
+					&fanin4_pins &fanin5_pins
+					&fanin6_pins &fanin7_pins>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fan@0 {
