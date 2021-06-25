@@ -106,7 +106,7 @@ struct ece_ioctl_cmd {
 	u32 lp;
 };
 
-struct npcm_ece {
+struct npcm750_ece {
 	void __iomem	*virt;
 	struct regmap *ece_regmap;
 	struct mutex mlock; /* for ioctl*/
@@ -125,7 +125,7 @@ struct npcm_ece {
 };
 
 /* Clear Offset of Compressed Rectangle*/
-static void npcm_ece_clear_rect_offset(struct npcm_ece *priv)
+static void npcm750_ece_clear_rect_offset(struct npcm750_ece *priv)
 {
 	struct regmap *ece = priv->ece_regmap;
 
@@ -133,7 +133,7 @@ static void npcm_ece_clear_rect_offset(struct npcm_ece *priv)
 }
 
 /* Read Offset of Compressed Rectangle*/
-static u32 npcm_ece_read_rect_offset(struct npcm_ece *priv)
+static u32 npcm750_ece_read_rect_offset(struct npcm750_ece *priv)
 {
 	struct regmap *ece = priv->ece_regmap;
 	u32 offset;
@@ -143,7 +143,7 @@ static u32 npcm_ece_read_rect_offset(struct npcm_ece *priv)
 }
 
 /* Return data if a rectangle finished to be compressed */
-static u32 npcm_ece_get_ed_size(struct npcm_ece *priv, u32 offset)
+static u32 npcm750_ece_get_ed_size(struct npcm750_ece *priv, u32 offset)
 {
 	struct regmap *ece = priv->ece_regmap;
 	u32 size, gap;
@@ -168,7 +168,7 @@ static u32 npcm_ece_get_ed_size(struct npcm_ece *priv, u32 offset)
 }
 
 /* This routine reset the FIFO as a bypass for Z1 chip */
-static void npcm_ece_fifo_reset_bypass(struct npcm_ece *priv)
+static void npcm750_ece_fifo_reset_bypass(struct npcm750_ece *priv)
 {
 	struct regmap *ece = priv->ece_regmap;
 	regmap_update_bits(ece, DDA_CTRL, DDA_CTRL_ECEEN, (u32)~DDA_CTRL_ECEEN);
@@ -176,7 +176,7 @@ static void npcm_ece_fifo_reset_bypass(struct npcm_ece *priv)
 }
 
 /* This routine Encode the desired rectangle */
-static void npcm_ece_enc_rect(struct npcm_ece *priv,
+static void npcm750_ece_enc_rect(struct npcm750_ece *priv,
 				 u32 r_off_x, u32 r_off_y, u32 r_w, u32 r_h)
 {
 	struct regmap *ece = priv->ece_regmap;
@@ -188,7 +188,7 @@ static void npcm_ece_enc_rect(struct npcm_ece *priv,
 	u32 w_size = ECE_TILE_W;
 	u32 h_size = ECE_TILE_H;
 
-	npcm_ece_fifo_reset_bypass(priv);
+	npcm750_ece_fifo_reset_bypass(priv);
 
 	regmap_write(ece, RECT_XY, rect_offset);
 
@@ -214,7 +214,7 @@ static void npcm_ece_enc_rect(struct npcm_ece *priv,
 }
 
 /* This routine sets the Encoded Data base address */
-static void npcm_ece_set_enc_dba(struct npcm_ece *priv, u32 addr)
+static void npcm750_ece_set_enc_dba(struct npcm750_ece *priv, u32 addr)
 {
 	struct regmap *ece = priv->ece_regmap;
 
@@ -222,7 +222,7 @@ static void npcm_ece_set_enc_dba(struct npcm_ece *priv, u32 addr)
 }
 
 /* This routine sets the Frame Buffer base address */
-static void npcm_ece_set_fb_addr(struct npcm_ece *priv, u32 buffer)
+static void npcm750_ece_set_fb_addr(struct npcm750_ece *priv, u32 buffer)
 {
 	struct regmap *ece = priv->ece_regmap;
 
@@ -231,7 +231,7 @@ static void npcm_ece_set_fb_addr(struct npcm_ece *priv, u32 buffer)
 
 /* Set the line pitch (in bytes) for the frame buffers. */
 /* Can be on of those values: 512, 1024, 2048, 2560 or 4096 bytes */
-static void npcm_ece_set_lp(struct npcm_ece *priv, u32 pitch)
+static void npcm750_ece_set_lp(struct npcm750_ece *priv, u32 pitch)
 {
 	u32 lp;
 	struct regmap *ece = priv->ece_regmap;
@@ -261,7 +261,7 @@ static void npcm_ece_set_lp(struct npcm_ece *priv, u32 pitch)
 }
 
 /* Stop and reset the ECE state machine */
-static void npcm_ece_reset(struct npcm_ece *priv)
+static void npcm750_ece_reset(struct npcm750_ece *priv)
 {
 	struct regmap *ece = priv->ece_regmap;
 
@@ -274,15 +274,15 @@ static void npcm_ece_reset(struct npcm_ece *priv)
 	regmap_update_bits(ece,
 				HEX_CTRL, HEX_CTRL_ENCDIS, (u32)~HEX_CTRL_ENCDIS);
 
-	npcm_ece_clear_rect_offset(priv);
+	npcm750_ece_clear_rect_offset(priv);
 }
 
 /* Initialise the ECE block and interface library */
-static int npcm_ece_init(struct npcm_ece *priv)
+static int npcm750_ece_init(struct npcm750_ece *priv)
 {
-	npcm_ece_reset(priv);
+	npcm750_ece_reset(priv);
 
-	npcm_ece_set_enc_dba(priv, priv->dma);
+	npcm750_ece_set_enc_dba(priv, priv->dma);
 
 	priv->line_pitch = DEFAULT_LP;
 
@@ -290,7 +290,7 @@ static int npcm_ece_init(struct npcm_ece *priv)
 }
 
 /* Disable the ECE block*/
-static int npcm_ece_stop(struct npcm_ece *priv)
+static int npcm750_ece_stop(struct npcm750_ece *priv)
 {
 	struct regmap *ece = priv->ece_regmap;
 
@@ -300,15 +300,15 @@ static int npcm_ece_stop(struct npcm_ece *priv)
 				DDA_CTRL, DDA_CTRL_INTEN, (u32)~DDA_CTRL_INTEN);
 	regmap_update_bits(ece,
 				HEX_CTRL, HEX_CTRL_ENCDIS, HEX_CTRL_ENCDIS);
-	npcm_ece_clear_rect_offset(priv);
+	npcm750_ece_clear_rect_offset(priv);
 
 	return 0;
 }
 
 static int
-npcm_ece_mmap(struct file *file, struct vm_area_struct *vma)
+npcm750_ece_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct npcm_ece *priv = file->private_data;
+	struct npcm750_ece *priv = file->private_data;
 
 	if (!priv)
 		return -ENODEV;
@@ -318,10 +318,10 @@ npcm_ece_mmap(struct file *file, struct vm_area_struct *vma)
 	return vm_iomap_memory(vma, priv->dma, priv->size);
 }
 
-static int npcm_ece_open(struct inode *inode, struct file *file)
+static int npcm750_ece_open(struct inode *inode, struct file *file)
 {
-	struct npcm_ece *priv =
-		container_of(file->private_data, struct npcm_ece, miscdev);
+	struct npcm750_ece *priv =
+		container_of(file->private_data, struct npcm750_ece, miscdev);
 
 	if (!priv)
 		return -ENODEV;
@@ -329,40 +329,40 @@ static int npcm_ece_open(struct inode *inode, struct file *file)
 	file->private_data = priv;
 
 	if (atomic_inc_return(&priv->clients) == 1)
-		npcm_ece_init(priv);
+		npcm750_ece_init(priv);
 
 	dev_dbg(priv->dev, "open: client %d\n", atomic_read(&priv->clients));
 
 	return 0;
 }
 
-static int npcm_ece_close(struct inode *inode, struct file *file)
+static int npcm750_ece_close(struct inode *inode, struct file *file)
 {
-	struct npcm_ece *priv = file->private_data;
+	struct npcm750_ece *priv = file->private_data;
 
 	if (atomic_dec_return(&priv->clients) == 0)
-		npcm_ece_stop(priv);
+		npcm750_ece_stop(priv);
 
 	dev_dbg(priv->dev, "close: client %d\n", atomic_read(&priv->clients));
 	return 0;
 }
 
-long npcm_ece_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
+long npcm750_ece_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 {
 	int err = 0;
-	struct npcm_ece *priv = filp->private_data;
+	struct npcm750_ece *priv = filp->private_data;
 	struct regmap *ece = priv->ece_regmap;
 
 	mutex_lock(&priv->mlock);
 
 	switch (cmd) {
 	case ECE_IOCCLEAR_OFFSET:
-		npcm_ece_clear_rect_offset(priv);
+		npcm750_ece_clear_rect_offset(priv);
 
 		break;
 	case ECE_IOCGET_OFFSET:
 	{
-		u32 offset = npcm_ece_read_rect_offset(priv);
+		u32 offset = npcm750_ece_read_rect_offset(priv);
 
 		err = copy_to_user((int __user *)args, &offset, sizeof(offset))
 			? -EFAULT : 0;
@@ -378,7 +378,7 @@ long npcm_ece_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 			break;
 
 		if (!(data.lp % ECE_MIN_LP) && data.lp <= ECE_MAX_LP)
-			npcm_ece_set_lp(priv, data.lp);
+			npcm750_ece_set_lp(priv, data.lp);
 
 		break;
 	}
@@ -396,7 +396,7 @@ long npcm_ece_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 			break;
 		}
 
-		npcm_ece_set_fb_addr(priv, data.framebuf);
+		npcm750_ece_set_fb_addr(priv, data.framebuf);
 		break;
 	}
 	case ECE_IOCGETED:
@@ -410,7 +410,7 @@ long npcm_ece_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		if (err)
 			break;
 
-		offset = npcm_ece_read_rect_offset(priv);
+		offset = npcm750_ece_read_rect_offset(priv);
 
 		if ((offset + (data.w * data.h * 2) + 12) >= priv->size) {
 			err = -EFAULT;
@@ -426,16 +426,16 @@ long npcm_ece_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		regmap_update_bits(ece,
 			DDA_CTRL, DDA_CTRL_INTEN, DDA_CTRL_INTEN);
 
-		npcm_ece_enc_rect(priv, data.x, data.y, data.w, data.h);
+		npcm750_ece_enc_rect(priv, data.x, data.y, data.w, data.h);
 
-		ed_size = npcm_ece_get_ed_size(priv, offset);
+		ed_size = npcm750_ece_get_ed_size(priv, offset);
 
 		regmap_update_bits(ece,
 			DDA_CTRL, DDA_CTRL_INTEN, (u32)~DDA_CTRL_INTEN);
 
 #if 1
 		// WAR: Force to reset offset for npcm8xx
-		npcm_ece_clear_rect_offset(priv);
+		npcm750_ece_clear_rect_offset(priv);
 #endif
 		if (ed_size == 0) {
 			err = -EFAULT;
@@ -450,8 +450,8 @@ long npcm_ece_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 	}
 	case ECE_IOCENCADDR_RESET:
 	{
-		npcm_ece_clear_rect_offset(priv);
-		npcm_ece_set_enc_dba(priv, priv->dma);
+		npcm750_ece_clear_rect_offset(priv);
+		npcm750_ece_set_enc_dba(priv, priv->dma);
 		priv->line_pitch = DEFAULT_LP;
 		break;
 	}
@@ -459,8 +459,8 @@ long npcm_ece_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 	{
 		u32 gap;
 
-		npcm_ece_reset(priv);
-		npcm_ece_set_enc_dba(priv, priv->dma);
+		npcm750_ece_reset(priv);
+		npcm750_ece_set_enc_dba(priv, priv->dma);
 
 		regmap_read(ece, HEX_CTRL, &gap);
 		priv->enc_gap = (gap & HEX_CTRL_ENC_GAP) >> HEX_CTRL_ENC_GAP_OFFSET;
@@ -478,9 +478,9 @@ long npcm_ece_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 	return err;
 }
 
-static irqreturn_t npcm_ece_irq_handler(int irq, void *arg)
+static irqreturn_t npcm750_ece_irq_handler(int irq, void *arg)
 {
-	struct npcm_ece *priv = arg;
+	struct npcm750_ece *priv = arg;
 	struct regmap *ece = priv->ece_regmap;
 	u32 status_ack = 0;
 	u32 status;
@@ -510,14 +510,14 @@ static irqreturn_t npcm_ece_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct file_operations const npcm_ece_fops = {
-	.unlocked_ioctl = npcm_ece_ioctl,
-	.open = npcm_ece_open,
-	.release = npcm_ece_close,
-	.mmap = npcm_ece_mmap,
+struct file_operations const npcm750_ece_fops = {
+	.unlocked_ioctl = npcm750_ece_ioctl,
+	.open = npcm750_ece_open,
+	.release = npcm750_ece_close,
+	.mmap = npcm750_ece_mmap,
 };
 
-static int npcm_ece_device_create(struct npcm_ece *priv)
+static int npcm750_ece_device_create(struct npcm750_ece *priv)
 {
 	int ret = 0;
 	struct resource resm;
@@ -563,7 +563,7 @@ static int npcm_ece_device_create(struct npcm_ece *priv)
 		goto err;
 	}
 
-	ret = devm_request_threaded_irq(dev, priv->irq, NULL, npcm_ece_irq_handler,
+	ret = devm_request_threaded_irq(dev, priv->irq, NULL, npcm750_ece_irq_handler,
 				IRQF_ONESHOT, DEVICE_NAME, priv);
 	if (ret < 0) {
 		dev_err(dev, "Unable to request IRQ %d\n", priv->irq);
@@ -571,7 +571,7 @@ static int npcm_ece_device_create(struct npcm_ece *priv)
 	}
 
 	priv->miscdev.parent = dev;
-	priv->miscdev.fops =  &npcm_ece_fops;
+	priv->miscdev.fops =  &npcm750_ece_fops;
 	priv->miscdev.minor = MISC_DYNAMIC_MINOR;
 	priv->miscdev.name =
 		devm_kasprintf(dev, GFP_KERNEL, "%s", "hextile");
@@ -594,18 +594,18 @@ err:
 	return ret;
 }
 
-static const struct regmap_config npcm_ece_regmap_cfg = {
+static const struct regmap_config npcm750_ece_regmap_cfg = {
 	.reg_bits       = 32,
 	.reg_stride     = 4,
 	.val_bits       = 32,
 	.max_register   = HEX_RECT_OFFSET,
 };
 
-static int npcm_ece_probe(struct platform_device *pdev)
+static int npcm750_ece_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	void __iomem *regs;
-	struct npcm_ece *priv = NULL;
+	struct npcm750_ece *priv = NULL;
 	struct device *dev = &pdev->dev;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -622,14 +622,14 @@ static int npcm_ece_probe(struct platform_device *pdev)
 	}
 
 	priv->ece_regmap = devm_regmap_init_mmio(dev, regs,
-						&npcm_ece_regmap_cfg);
+						&npcm750_ece_regmap_cfg);
 	if (IS_ERR(priv->ece_regmap)) {
 		dev_err(dev, "Failed to init regmap!\n");
 		ret = PTR_ERR(priv->ece_regmap);
 		goto err;
 	}
 
-	ret = npcm_ece_device_create(priv);
+	ret = npcm750_ece_device_create(priv);
 	if (ret) {
 		dev_err(dev, "%s: failed to create device\n",
 			__func__);
@@ -648,11 +648,11 @@ err:
 	return ret;
 }
 
-static int npcm_ece_remove(struct platform_device *pdev)
+static int npcm750_ece_remove(struct platform_device *pdev)
 {
-	struct npcm_ece *priv = platform_get_drvdata(pdev);
+	struct npcm750_ece *priv = platform_get_drvdata(pdev);
 
-	npcm_ece_stop(priv);
+	npcm750_ece_stop(priv);
 
 	misc_deregister(&priv->miscdev);
 
@@ -667,23 +667,23 @@ static int npcm_ece_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id npcm_ece_of_match_table[] = {
+static const struct of_device_id npcm750_ece_of_match_table[] = {
 	{ .compatible = "nuvoton,npcm750-ece"},
 	{ .compatible = "nuvoton,npcm845-ece"},
 	{}
 };
-MODULE_DEVICE_TABLE(of, npcm_ece_of_match_table);
+MODULE_DEVICE_TABLE(of, npcm750_ece_of_match_table);
 
-static struct platform_driver npcm_ece_driver = {
+static struct platform_driver npcm750_ece_driver = {
 	.driver		= {
 		.name	= DEVICE_NAME,
-		.of_match_table = npcm_ece_of_match_table,
+		.of_match_table = npcm750_ece_of_match_table,
 	},
-	.probe		= npcm_ece_probe,
-	.remove		= npcm_ece_remove,
+	.probe		= npcm750_ece_probe,
+	.remove		= npcm750_ece_remove,
 };
 
-module_platform_driver(npcm_ece_driver);
+module_platform_driver(npcm750_ece_driver);
 MODULE_DESCRIPTION("Nuvoton NPCM ECE Driver");
 MODULE_AUTHOR("KW Liu <kwliu@nuvoton.com>");
 MODULE_LICENSE("GPL v2");

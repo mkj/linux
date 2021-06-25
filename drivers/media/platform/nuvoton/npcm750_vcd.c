@@ -372,7 +372,7 @@ struct rect_info {
 	int tile_cnt;
 };
 
-struct npcm_vcd {
+struct npcm750_vcd {
 	struct mutex mlock; /*for iotcl*/
 	spinlock_t lock;	/*for irq*/
 	struct device *dev;
@@ -442,7 +442,7 @@ static const res_tlb res_tlbs[] = {
 
 static const size_t restlb_cnt = sizeof(res_tlbs) / sizeof(res_tlb);
 
-static void npcm_vcd_claer_gmmap(struct npcm_vcd *priv)
+static void npcm750_vcd_claer_gmmap(struct npcm750_vcd *priv)
 {
 #ifdef CONFIG_ARCH_NPCM7XX
 	struct regmap *gcr = priv->gcr_regmap;
@@ -475,7 +475,7 @@ static void npcm_vcd_claer_gmmap(struct npcm_vcd *priv)
 #endif
 }
 
-static u8 npcm_vcd_is_mga(struct npcm_vcd *priv)
+static u8 npcm750_vcd_is_mga(struct npcm750_vcd *priv)
 {
 	struct regmap *gfxi = priv->gfx_regmap;
 	u32 dispst;
@@ -484,7 +484,7 @@ static u8 npcm_vcd_is_mga(struct npcm_vcd *priv)
 	return ((dispst & DISPST_MGAMODE) == DISPST_MGAMODE);
 }
 
-static u32 npcm_vcd_hres(struct npcm_vcd *priv)
+static u32 npcm750_vcd_hres(struct npcm750_vcd *priv)
 {
 	struct regmap *gfxi = priv->gfx_regmap;
 	u32 hvcnth, hvcntl, apb_hor_res;
@@ -499,7 +499,7 @@ static u32 npcm_vcd_hres(struct npcm_vcd *priv)
 		VCD_MAX_WIDTH : apb_hor_res;
 }
 
-static u32 npcm_vcd_vres(struct npcm_vcd *priv)
+static u32 npcm750_vcd_vres(struct npcm750_vcd *priv)
 {
 	struct regmap *gfxi = priv->gfx_regmap;
 	u32 vvcnth, vvcntl, apb_ver_res;
@@ -514,7 +514,7 @@ static u32 npcm_vcd_vres(struct npcm_vcd *priv)
 		VCD_MAX_HIGHT : apb_ver_res;
 }
 
-static void npcm_vcd_local_display(struct npcm_vcd *priv, u8 enable)
+static void npcm750_vcd_local_display(struct npcm750_vcd *priv, u8 enable)
 {
 	struct regmap *gcr = priv->gcr_regmap;
 
@@ -527,7 +527,7 @@ static void npcm_vcd_local_display(struct npcm_vcd *priv, u8 enable)
 	}
 }
 
-static int npcm_vcd_dvod(struct npcm_vcd *priv, u32 hdelay, u32 vdelay)
+static int npcm750_vcd_dvod(struct npcm750_vcd *priv, u32 hdelay, u32 vdelay)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 
@@ -538,7 +538,7 @@ static int npcm_vcd_dvod(struct npcm_vcd *priv, u32 hdelay, u32 vdelay)
 	return 0;
 }
 
-static int npcm_vcd_get_bpp(struct npcm_vcd *priv)
+static int npcm750_vcd_get_bpp(struct npcm750_vcd *priv)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 mode, color_cnvr;
@@ -560,7 +560,7 @@ static int npcm_vcd_get_bpp(struct npcm_vcd *priv)
 	return 0;
 }
 
-static void npcm_vcd_set_linepitch(struct npcm_vcd *priv, u32 linebytes)
+static void npcm750_vcd_set_linepitch(struct npcm750_vcd *priv, u32 linebytes)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 	/* Pitch must be a power of 2, >= linebytes,*/
@@ -573,7 +573,7 @@ static void npcm_vcd_set_linepitch(struct npcm_vcd *priv, u32 linebytes)
 	regmap_write(vcd, VCD_FB_LP, (pitch << VCD_FBB_LP_OFFSET) | pitch);
 }
 
-static u32 npcm_vcd_get_linepitch(struct npcm_vcd *priv)
+static u32 npcm750_vcd_get_linepitch(struct npcm750_vcd *priv)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 linepitch;
@@ -583,7 +583,7 @@ static u32 npcm_vcd_get_linepitch(struct npcm_vcd *priv)
 	return linepitch & VCD_FB_LP_MASK;
 }
 
-static int npcm_vcd_ready(struct npcm_vcd *priv)
+static int npcm750_vcd_ready(struct npcm750_vcd *priv)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 lp, res;
@@ -602,7 +602,7 @@ static int npcm_vcd_ready(struct npcm_vcd *priv)
 	return 0;
 }
 
-static u32 npcm_vcd_pclk(struct npcm_vcd *priv)
+static u32 npcm750_vcd_pclk(struct npcm750_vcd *priv)
 {
 	struct regmap *gfxi = priv->gfx_regmap;
 	u32 tmp, pllfbdiv, pllinotdiv, gpllfbdiv;
@@ -631,7 +631,7 @@ static u32 npcm_vcd_pclk(struct npcm_vcd *priv)
 }
 
 static int
-npcm_vcd_capres(struct npcm_vcd *priv, u32 width, u32 height)
+npcm750_vcd_capres(struct npcm750_vcd *priv, u32 width, u32 height)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 res = (height & VCD_CAPRES_MASK)
@@ -651,7 +651,7 @@ npcm_vcd_capres(struct npcm_vcd *priv, u32 width, u32 height)
 	return 0;
 }
 static void
-npcm_short_vcd_reset(struct npcm_vcd *priv)
+npcm_short_vcd_reset(struct npcm750_vcd *priv)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 stat;
@@ -666,7 +666,7 @@ npcm_short_vcd_reset(struct npcm_vcd *priv)
 	regmap_write(vcd, VCD_INTE, VCD_INTE_VAL);
 }
 
-static int npcm_vcd_reset(struct npcm_vcd *priv)
+static int npcm750_vcd_reset(struct npcm750_vcd *priv)
 {
 	struct regmap *gcr = priv->gcr_regmap;
 	struct regmap *vcd = priv->vcd_regmap;
@@ -690,17 +690,17 @@ static int npcm_vcd_reset(struct npcm_vcd *priv)
 	return 0;
 }
 
-static void npcm_vcd_io_reset(struct npcm_vcd *priv)
+static void npcm750_vcd_io_reset(struct npcm750_vcd *priv)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 
 	regmap_write(vcd, VCD_INTE, 0);
 	regmap_write(vcd, VCD_STAT, VCD_STAT_CLEAR);
-	npcm_vcd_reset(priv);
+	npcm750_vcd_reset(priv);
 	regmap_write(vcd, VCD_INTE, VCD_INTE_VAL);
 }
 
-static void npcm_vcd_dehs(struct npcm_vcd *priv, int is_de)
+static void npcm750_vcd_dehs(struct npcm750_vcd *priv, int is_de)
 {
 	struct regmap *gcr = priv->gcr_regmap;
 	struct regmap *vcd = priv->vcd_regmap;
@@ -718,11 +718,11 @@ static void npcm_vcd_dehs(struct npcm_vcd *priv, int is_de)
 	}
 }
 
-static void npcm_vcd_kvm_bw(struct npcm_vcd *priv, u8 bandwidth)
+static void npcm750_vcd_kvm_bw(struct npcm750_vcd *priv, u8 bandwidth)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 
-	if (!npcm_vcd_is_mga(priv))
+	if (!npcm750_vcd_is_mga(priv))
 		bandwidth = 1;
 
 	if (bandwidth)
@@ -739,16 +739,16 @@ static void npcm_vcd_kvm_bw(struct npcm_vcd *priv, u8 bandwidth)
 			(u32)~VCD_MODE_KVM_BW_SET);
 }
 
-static void npcm_vcd_update_info(struct npcm_vcd *priv)
+static void npcm750_vcd_update_info(struct npcm750_vcd *priv)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 
-	priv->info.hdisp = npcm_vcd_hres(priv);
-	priv->info.vdisp = npcm_vcd_vres(priv);
+	priv->info.hdisp = npcm750_vcd_hres(priv);
+	priv->info.vdisp = npcm750_vcd_vres(priv);
 	priv->video_name = "Digital";
-	priv->info.pixelclk = npcm_vcd_pclk(priv);
-	priv->info.bpp = npcm_vcd_get_bpp(priv);
-	priv->info.mode = npcm_vcd_is_mga(priv);
+	priv->info.pixelclk = npcm750_vcd_pclk(priv);
+	priv->info.bpp = npcm750_vcd_get_bpp(priv);
+	priv->info.mode = npcm750_vcd_is_mga(priv);
 	priv->info.refresh_rate = 60;
 	priv->info.hfrontporch = 0;
 	priv->info.hbackporch = 0;
@@ -768,26 +768,26 @@ static void npcm_vcd_update_info(struct npcm_vcd *priv)
 
 }
 
-static void npcm_vcd_detect_video_mode(struct npcm_vcd *priv)
+static void npcm750_vcd_detect_video_mode(struct npcm750_vcd *priv)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 mode;
 
-	npcm_vcd_capres(priv, priv->info.hdisp, priv->info.vdisp);
+	npcm750_vcd_capres(priv, priv->info.hdisp, priv->info.vdisp);
 
-	npcm_vcd_set_linepitch(
-		priv, priv->info.hdisp * npcm_vcd_get_bpp(priv));
+	npcm750_vcd_set_linepitch(
+		priv, priv->info.hdisp * npcm750_vcd_get_bpp(priv));
 
-	priv->info.line_pitch = npcm_vcd_get_linepitch(priv);
+	priv->info.line_pitch = npcm750_vcd_get_linepitch(priv);
 
-	npcm_vcd_kvm_bw(priv, priv->info.pixelclk > VCD_KVM_BW_PCLK);
+	npcm750_vcd_kvm_bw(priv, priv->info.pixelclk > VCD_KVM_BW_PCLK);
 
-	npcm_vcd_reset(priv);
+	npcm750_vcd_reset(priv);
 
 	regmap_read(vcd, VCD_MODE, &mode);
 
 	dev_dbg(priv->dev, "VCD Mode = 0x%x, %s mode\n", mode,
-		npcm_vcd_is_mga(priv) ? "Hi Res" : "VGA");
+		npcm750_vcd_is_mga(priv) ? "Hi Res" : "VGA");
 
 	dev_dbg(priv->dev, "Resolution: %d x %d, Pixel Clk %zuKHz, Line Pitch %d\n",
 			priv->info.hdisp, priv->info.vdisp,
@@ -795,7 +795,7 @@ static void npcm_vcd_detect_video_mode(struct npcm_vcd *priv)
 			priv->info.line_pitch);
 }
 
-static u8 npcm_vcd_is_busy(struct npcm_vcd *priv)
+static u8 npcm750_vcd_is_busy(struct npcm750_vcd *priv)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 stat;
@@ -806,7 +806,7 @@ static u8 npcm_vcd_is_busy(struct npcm_vcd *priv)
 	return (stat == VCD_STAT_BUSY);
 }
 
-static u8 npcm_vcd_op_done(struct npcm_vcd *priv)
+static u8 npcm750_vcd_op_done(struct npcm750_vcd *priv)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 vdisp;
@@ -821,12 +821,12 @@ static u8 npcm_vcd_op_done(struct npcm_vcd *priv)
 		(curline == vdisp));
 }
 
-static int npcm_vcd_command(struct npcm_vcd *priv, u32 value)
+static int npcm750_vcd_command(struct npcm750_vcd *priv, u32 value)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 cmd;
 
-	if (npcm_vcd_is_busy(priv))
+	if (npcm750_vcd_is_busy(priv))
 		/* Not ready for another command */
 		return -EBUSY;
 
@@ -845,7 +845,7 @@ static int npcm_vcd_command(struct npcm_vcd *priv, u32 value)
 	return 0;
 }
 
-static int npcm_vcd_get_resolution(struct npcm_vcd *priv)
+static int npcm750_vcd_get_resolution(struct npcm750_vcd *priv)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 	size_t i;
@@ -858,16 +858,16 @@ static int npcm_vcd_get_resolution(struct npcm_vcd *priv)
 	hortact &= VCD_HOR_AC_TIM_MASK;
 
 	/* check with GFX registers if resolution changed from last time */
-	if ((priv->info.hdisp != npcm_vcd_hres(priv)) ||
-		(priv->info.vdisp != npcm_vcd_vres(priv)) ||
-		(priv->info.pixelclk != npcm_vcd_pclk(priv)) ||
-		(priv->info.mode != npcm_vcd_is_mga(priv)) ||
+	if ((priv->info.hdisp != npcm750_vcd_hres(priv)) ||
+		(priv->info.vdisp != npcm750_vcd_vres(priv)) ||
+		(priv->info.pixelclk != npcm750_vcd_pclk(priv)) ||
+		(priv->info.mode != npcm750_vcd_is_mga(priv)) ||
 		(priv->hortact != hortact)) {
 
 		regmap_write(vcd, VCD_INTE, 0);
 		regmap_write(vcd, VCD_STAT, VCD_STAT_CLEAR);
 
-		if (npcm_vcd_hres(priv) && npcm_vcd_vres(priv)) {
+		if (npcm750_vcd_hres(priv) && npcm750_vcd_vres(priv)) {
 			struct regmap *gfxi = priv->gfx_regmap;
 			u32 dispst;
 
@@ -879,16 +879,16 @@ static int npcm_vcd_get_resolution(struct npcm_vcd *priv)
 				mdelay(GET_RES_TIMEOUT);
 				regmap_read(gfxi, DISPST, &dispst);
 				res_retry--;
-			} while (npcm_vcd_vres(priv) < 100 ||
-					npcm_vcd_pclk(priv) == 0 ||
+			} while (npcm750_vcd_vres(priv) < 100 ||
+					npcm750_vcd_pclk(priv) == 0 ||
 					(dispst & DISPST_HSCROFF));
 		}
 
 		/* wait for valid resolution */
 		while (vaild_retry--) {
 			for (i = 0 ; i < restlb_cnt ; i++) {
-				if ((res_tlbs[i].hdisp == npcm_vcd_hres(priv)) &&
-					(res_tlbs[i].vdisp == npcm_vcd_vres(priv))) {
+				if ((res_tlbs[i].hdisp == npcm750_vcd_hres(priv)) &&
+					(res_tlbs[i].vdisp == npcm750_vcd_vres(priv))) {
 					vaild = 1;
 					break;
 				}
@@ -900,18 +900,18 @@ static int npcm_vcd_get_resolution(struct npcm_vcd *priv)
 		}
 
 		/* Update video information */
-		npcm_vcd_update_info(priv);
+		npcm750_vcd_update_info(priv);
 
 		if (!vaild) {
 			dev_dbg(priv->dev, "invalid resolution %d x %d\n",
-				npcm_vcd_hres(priv), npcm_vcd_vres(priv));
-			if (npcm_vcd_vres(priv) == 0)
-				npcm_vcd_claer_gmmap(priv);
+				npcm750_vcd_hres(priv), npcm750_vcd_vres(priv));
+			if (npcm750_vcd_vres(priv) == 0)
+				npcm750_vcd_claer_gmmap(priv);
 			return -1;
 		}
 
 		/* setup resolution change detect register*/
-		npcm_vcd_detect_video_mode(priv);
+		npcm750_vcd_detect_video_mode(priv);
 
 		/* enable interrupt */
 		regmap_write(vcd, VCD_INTE, VCD_INTE_VAL);
@@ -921,7 +921,7 @@ static int npcm_vcd_get_resolution(struct npcm_vcd *priv)
 	return 0;
 }
 
-static void npcm_vcd_free_diff_table(struct npcm_vcd *priv)
+static void npcm750_vcd_free_diff_table(struct npcm750_vcd *priv)
 {
 	struct list_head *head, *pos, *nx;
 	struct rect_list *tmp;
@@ -939,7 +939,7 @@ static void npcm_vcd_free_diff_table(struct npcm_vcd *priv)
 }
 
 static void
-npcm_vcd_merge_rect(struct npcm_vcd *priv, struct rect_info *info)
+npcm750_vcd_merge_rect(struct npcm750_vcd *priv, struct rect_info *info)
 {
 	struct list_head *head = info->head;
 	struct rect_list *list = info->list;
@@ -975,7 +975,7 @@ npcm_vcd_merge_rect(struct npcm_vcd *priv, struct rect_info *info)
 }
 
 static struct rect_list *
-npcm_vcd_new_rect(struct npcm_vcd *priv, int offset, int index)
+npcm750_vcd_new_rect(struct npcm750_vcd *priv, int offset, int index)
 {
 	struct rect_list *list = NULL;
 
@@ -996,22 +996,22 @@ npcm_vcd_new_rect(struct npcm_vcd *priv, int offset, int index)
 }
 
 static int
-npcm_vcd_rect(struct npcm_vcd *priv, struct rect_info *info, u32 offset)
+npcm750_vcd_rect(struct npcm750_vcd *priv, struct rect_info *info, u32 offset)
 {
 	int i = info->index;
 
 	if (offset < info->tile_perline) {
-		info->list = npcm_vcd_new_rect(priv, offset, i);
+		info->list = npcm750_vcd_new_rect(priv, offset, i);
 		if (!info->list)
 			return -ENOMEM;
 
-		npcm_vcd_merge_rect(priv, info);
+		npcm750_vcd_merge_rect(priv, info);
 	}
 	return 0;
 }
 
 static int
-npcm_vcd_build_table(struct npcm_vcd *priv, struct rect_info *info)
+npcm750_vcd_build_table(struct npcm750_vcd *priv, struct rect_info *info)
 {
 	int i = info->index;
 	int j, z, ret;
@@ -1023,7 +1023,7 @@ npcm_vcd_build_table(struct npcm_vcd *priv, struct rect_info *info)
 		if (bitmap != 0) {
 			for (z = 0 ; z < 32; z++) {
 				if ((bitmap >> z) & 0x01) {
-					ret = npcm_vcd_rect(
+					ret = npcm750_vcd_rect(
 							priv,
 							info,
 							z + (j << 3));
@@ -1037,7 +1037,7 @@ npcm_vcd_build_table(struct npcm_vcd *priv, struct rect_info *info)
 	return info->tile_perline;
 }
 
-static int npcm_vcd_get_diff_table(struct npcm_vcd *priv)
+static int npcm750_vcd_get_diff_table(struct npcm750_vcd *priv)
 {
 	struct rect_info info;
 	int ret = 0;
@@ -1067,7 +1067,7 @@ static int npcm_vcd_get_diff_table(struct npcm_vcd *priv)
 	info.offset_perline *= 4;
 
 	do {
-		ret = npcm_vcd_build_table(priv, &info);
+		ret = npcm750_vcd_build_table(priv, &info);
 		if (ret < 0)
 			return ret;
 		tile_cnt += ret;
@@ -1076,7 +1076,7 @@ static int npcm_vcd_get_diff_table(struct npcm_vcd *priv)
 	return ret;
 }
 
-static int npcm_vcd_init(struct npcm_vcd *priv)
+static int npcm750_vcd_init(struct npcm750_vcd *priv)
 {
 	struct regmap *gcr = priv->gcr_regmap;
 	struct regmap *vcd = priv->vcd_regmap;
@@ -1095,15 +1095,15 @@ static int npcm_vcd_init(struct npcm_vcd *priv)
 	/* Select KVM GFX input */
 	regmap_update_bits(gcr, MFSEL1, MFSEL1_DVH1SEL, (u32)~MFSEL1_DVH1SEL);
 
-	if (npcm_vcd_ready(priv))
+	if (npcm750_vcd_ready(priv))
 		return	-ENODEV;
 
-	npcm_vcd_reset(priv);
+	npcm750_vcd_reset(priv);
 
 	/* Initialise capture resolution to a non-zero value */
 	/* so that frame capture will behave sensibly before */
 	/* the true resolution has been determined.*/
-	if (npcm_vcd_capres(priv, VCD_INIT_WIDTH, VCD_INIT_HIGHT)) {
+	if (npcm750_vcd_capres(priv, VCD_INIT_WIDTH, VCD_INIT_HIGHT)) {
 		dev_err(priv->dev, "failed to set resolution\n");
 		return -EINVAL;
 	}
@@ -1120,7 +1120,7 @@ static int npcm_vcd_init(struct npcm_vcd *priv)
 			    VCD_MODE_CM_565 | VCD_MODE_KVM_BW_SET);
 
 	/* Set DVDE/DVHSYNC */
-	npcm_vcd_dehs(priv, priv->de_mode);
+	npcm750_vcd_dehs(priv, priv->de_mode);
 
 	priv->info.vcd_fb = priv->dma;
 	priv->info.r_max = VCD_R_MAX;
@@ -1131,13 +1131,13 @@ static int npcm_vcd_init(struct npcm_vcd *priv)
 	priv->info.b_shift = VCD_B_SHIFT;
 
 	/* Enable local disaply */
-	npcm_vcd_local_display(priv, 1);
+	npcm750_vcd_local_display(priv, 1);
 
 	/* Update video information */
-	npcm_vcd_update_info(priv);
+	npcm750_vcd_update_info(priv);
 
 	/* Detect video mode */
-	npcm_vcd_detect_video_mode(priv);
+	npcm750_vcd_detect_video_mode(priv);
 
 	/* Enable interrupt */
 	regmap_write(vcd, VCD_INTE, VCD_INTE_VAL);
@@ -1146,14 +1146,14 @@ static int npcm_vcd_init(struct npcm_vcd *priv)
 		regmap_update_bits(vcd, VCD_RCHG, VCD_RCHG_TIM_PRSCL,
 			0x01 << VCD_RCHG_TIM_PRSCL_OFFSET);
 	} else {
-		npcm_vcd_dvod(priv, 0, 0);
+		npcm750_vcd_dvod(priv, 0, 0);
 		regmap_write(vcd, VCD_RCHG, 0);
 	}
 
 	return 0;
 }
 
-static void npcm_vcd_stop(struct npcm_vcd *priv)
+static void npcm750_vcd_stop(struct npcm750_vcd *priv)
 {
 	struct regmap *gcr = priv->gcr_regmap;
 	struct regmap *vcd = priv->vcd_regmap;
@@ -1169,13 +1169,13 @@ static void npcm_vcd_stop(struct npcm_vcd *priv)
 	regmap_write(vcd, VCD_MODE, 0);
 	regmap_write(vcd, VCD_RCHG, 0);
 
-	npcm_vcd_free_diff_table(priv);
+	npcm750_vcd_free_diff_table(priv);
 	memset(&priv->info, 0, sizeof(struct vcd_info));
 }
 
-static irqreturn_t npcm_vcd_irq_handler(int irq, void *arg)
+static irqreturn_t npcm750_vcd_irq_handler(int irq, void *arg)
 {
-	struct npcm_vcd *priv = arg;
+	struct npcm750_vcd *priv = arg;
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 status;
 	u32 status_ack = 0;
@@ -1268,9 +1268,9 @@ static irqreturn_t npcm_vcd_irq_handler(int irq, void *arg)
 }
 
 static int
-npcm_vcd_mmap(struct file *file, struct vm_area_struct *vma)
+npcm750_vcd_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct npcm_vcd *priv = file->private_data;
+	struct npcm750_vcd *priv = file->private_data;
 
 	if (!priv)
 		return -ENODEV;
@@ -1282,10 +1282,10 @@ npcm_vcd_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 static int
-npcm_vcd_open(struct inode *inode, struct file *file)
+npcm750_vcd_open(struct inode *inode, struct file *file)
 {
-	struct npcm_vcd *priv =
-		container_of(file->private_data, struct npcm_vcd, miscdev);
+	struct npcm750_vcd *priv =
+		container_of(file->private_data, struct npcm750_vcd, miscdev);
 
 	if (!priv)
 		return -ENODEV;
@@ -1293,7 +1293,7 @@ npcm_vcd_open(struct inode *inode, struct file *file)
 	file->private_data = priv;
 
 	if (atomic_inc_return(&priv->clients) == 1) {
-		if (npcm_vcd_init(priv)) {
+		if (npcm750_vcd_init(priv)) {
 			dev_err(priv->dev, "%s: failed to init vcd module\n",
 				__func__);
 			return -EBUSY;
@@ -1305,19 +1305,19 @@ npcm_vcd_open(struct inode *inode, struct file *file)
 }
 
 static int
-npcm_vcd_release(struct inode *inode, struct file *file)
+npcm750_vcd_release(struct inode *inode, struct file *file)
 {
-	struct npcm_vcd *priv = file->private_data;
+	struct npcm750_vcd *priv = file->private_data;
 
 	if (atomic_dec_return(&priv->clients) == 0)
-		npcm_vcd_stop(priv);
+		npcm750_vcd_stop(priv);
 
 	dev_dbg(priv->dev, "close: client %d\n", atomic_read(&priv->clients));
 	return 0;
 }
 
 static long
-npcm_do_vcd_ioctl(struct npcm_vcd *priv, unsigned int cmd,
+npcm_do_vcd_ioctl(struct npcm750_vcd *priv, unsigned int cmd,
 		     unsigned long arg)
 {
 	struct regmap *vcd = priv->vcd_regmap;
@@ -1340,7 +1340,7 @@ npcm_do_vcd_ioctl(struct npcm_vcd *priv, unsigned int cmd,
 			priv->status = 0;
 			reinit_completion(&priv->complete);
 
-			npcm_vcd_free_diff_table(priv);
+			npcm750_vcd_free_diff_table(priv);
 
 			if (vcd_cmd != VCD_CMD_OP_CAPTURE)
 				regmap_update_bits(vcd, VCD_MODE, VCD_MODE_IDBC,
@@ -1349,16 +1349,16 @@ npcm_do_vcd_ioctl(struct npcm_vcd *priv, unsigned int cmd,
 			regmap_update_bits(vcd, VCD_MODE, VCD_MODE_VCDE,
 				VCD_MODE_VCDE);
 
-			npcm_vcd_command(priv, vcd_cmd);
+			npcm750_vcd_command(priv, vcd_cmd);
 			timeout = wait_for_completion_interruptible_timeout(&priv->complete,
 			    VCD_OP_TIMEOUT);
-			if (timeout <= 0 || !npcm_vcd_op_done(priv)) {
+			if (timeout <= 0 || !npcm750_vcd_op_done(priv)) {
 				dev_dbg(priv->dev, "VCD_OP_BUSY\n");
 
 				if (priv->status == 0)
 					regmap_read(vcd, VCD_STAT, &priv->status);
 
-				npcm_vcd_io_reset(priv);
+				npcm750_vcd_io_reset(priv);
 				ret = copy_to_user(argp, &priv->status, sizeof(priv->status))
 					? -EFAULT : 0;
 			}
@@ -1370,14 +1370,14 @@ npcm_do_vcd_ioctl(struct npcm_vcd *priv, unsigned int cmd,
 				regmap_update_bits(vcd, VCD_MODE, VCD_MODE_IDBC,
 					(u32)~VCD_MODE_IDBC);
 				npcm_short_vcd_reset(priv);
-				npcm_vcd_get_diff_table(priv);
+				npcm750_vcd_get_diff_table(priv);
 			}
 		}
 		break;
 	}
 	case VCD_IOCCHKRES:
 	{
-		int changed = npcm_vcd_get_resolution(priv);
+		int changed = npcm750_vcd_get_resolution(priv);
 
 		if (changed < 0) {
 			ret = -EFAULT;
@@ -1436,14 +1436,14 @@ npcm_do_vcd_ioctl(struct npcm_vcd *priv, unsigned int cmd,
 			? -EFAULT : 0;
 		if (!ret && priv->de_mode != mode) {
 			priv->de_mode = mode;
-			npcm_vcd_stop(priv);
-			npcm_vcd_init(priv);
+			npcm750_vcd_stop(priv);
+			npcm750_vcd_init(priv);
 		}
 
 		break;
 	}
 	case VCD_IOCRESET:
-		npcm_vcd_io_reset(priv);
+		npcm750_vcd_io_reset(priv);
 
 		break;
 	case VCD_GETREG:
@@ -1490,24 +1490,24 @@ npcm_do_vcd_ioctl(struct npcm_vcd *priv, unsigned int cmd,
 }
 
 static long
-npcm_vcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+npcm750_vcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct npcm_vcd *priv = file->private_data;
+	struct npcm750_vcd *priv = file->private_data;
 
 	if (!priv)
 		return -ENODEV;
 	return npcm_do_vcd_ioctl(priv, cmd, arg);
 }
 
-static const struct file_operations npcm_vcd_fops = {
+static const struct file_operations npcm750_vcd_fops = {
 	.owner		= THIS_MODULE,
-	.open		= npcm_vcd_open,
-	.release	= npcm_vcd_release,
-	.mmap		= npcm_vcd_mmap,
-	.unlocked_ioctl = npcm_vcd_ioctl,
+	.open		= npcm750_vcd_open,
+	.release	= npcm750_vcd_release,
+	.mmap		= npcm750_vcd_mmap,
+	.unlocked_ioctl = npcm750_vcd_ioctl,
 };
 
-static int npcm_gfx_ram(struct npcm_vcd *priv)
+static int npcm_gfx_ram(struct npcm750_vcd *priv)
 {
 	int ret = 0;
 	struct resource resm;
@@ -1540,7 +1540,7 @@ static int npcm_gfx_ram(struct npcm_vcd *priv)
 	return 0;
 }
 
-static int npcm_vcd_ram(struct npcm_vcd *priv)
+static int npcm750_vcd_ram(struct npcm750_vcd *priv)
 {
 	int ret = 0;
 	struct resource resm;
@@ -1573,12 +1573,12 @@ static int npcm_vcd_ram(struct npcm_vcd *priv)
 }
 
 
-static int npcm_vcd_device_create(struct npcm_vcd *priv)
+static int npcm750_vcd_device_create(struct npcm750_vcd *priv)
 {
 	int ret = 0;
 	struct device *dev = priv->dev;
 
-	ret = npcm_vcd_ram(priv);
+	ret = npcm750_vcd_ram(priv);
 	if (ret)
 		goto err;
 
@@ -1598,7 +1598,7 @@ static int npcm_vcd_device_create(struct npcm_vcd *priv)
 		goto err;
 	}
 
-	ret = devm_request_threaded_irq(dev, priv->irq, NULL, npcm_vcd_irq_handler,
+	ret = devm_request_threaded_irq(dev, priv->irq, NULL, npcm750_vcd_irq_handler,
 				IRQF_ONESHOT, DEVICE_NAME, priv);
 	if (ret < 0) {
 		dev_err(dev, "Unable to request IRQ %d\n", priv->irq);
@@ -1606,7 +1606,7 @@ static int npcm_vcd_device_create(struct npcm_vcd *priv)
 	}
 
 	priv->miscdev.parent = dev;
-	priv->miscdev.fops =  &npcm_vcd_fops;
+	priv->miscdev.fops =  &npcm750_vcd_fops;
 	priv->miscdev.minor = MISC_DYNAMIC_MINOR;
 	priv->miscdev.name =
 		devm_kasprintf(dev, GFP_KERNEL, "%s", "vcd");
@@ -1628,16 +1628,16 @@ err:
 	return ret;
 }
 
-static const struct regmap_config npcm_vcd_regmap_cfg = {
+static const struct regmap_config npcm750_vcd_regmap_cfg = {
 	.reg_bits       = 32,
 	.reg_stride     = 4,
 	.val_bits       = 32,
 	.max_register   = VCD_FIFO,
 };
 
-static int npcm_vcd_probe(struct platform_device *pdev)
+static int npcm750_vcd_probe(struct platform_device *pdev)
 {
-	struct npcm_vcd *priv;
+	struct npcm750_vcd *priv;
 	void __iomem *regs;
 	int ret;
 	struct device *dev = &pdev->dev;
@@ -1673,14 +1673,14 @@ static int npcm_vcd_probe(struct platform_device *pdev)
 	}
 
 	priv->vcd_regmap = devm_regmap_init_mmio(dev, regs,
-						&npcm_vcd_regmap_cfg);
+						&npcm750_vcd_regmap_cfg);
 	if (IS_ERR(priv->vcd_regmap)) {
 		dev_err(dev, "Failed to init regmap!\n");
 		ret = PTR_ERR(priv->vcd_regmap);
 		goto err;
 	}
 
-	ret = npcm_vcd_device_create(priv);
+	ret = npcm750_vcd_device_create(priv);
 	if (ret) {
 		dev_err(dev, "%s: failed to create device\n",
 			__func__);
@@ -1700,11 +1700,11 @@ err:
 	return ret;
 }
 
-static int npcm_vcd_remove(struct platform_device *pdev)
+static int npcm750_vcd_remove(struct platform_device *pdev)
 {
-	struct npcm_vcd *priv = platform_get_drvdata(pdev);
+	struct npcm750_vcd *priv = platform_get_drvdata(pdev);
 
-	npcm_vcd_stop(priv);
+	npcm750_vcd_stop(priv);
 
 	free_irq(priv->irq, priv->dev);
 
@@ -1719,23 +1719,23 @@ static int npcm_vcd_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id npcm_vcd_of_match_table[] = {
+static const struct of_device_id npcm750_vcd_of_match_table[] = {
 	{ .compatible = "nuvoton,npcm750-vcd"},
 	{ .compatible = "nuvoton,npcm845-vcd"},
 	{}
 };
-MODULE_DEVICE_TABLE(of, npcm_vcd_of_match_table);
+MODULE_DEVICE_TABLE(of, npcm750_vcd_of_match_table);
 
-static struct platform_driver npcm_vcd_driver = {
+static struct platform_driver npcm750_vcd_driver = {
 	.driver		= {
 		.name	= DEVICE_NAME,
-		.of_match_table = npcm_vcd_of_match_table,
+		.of_match_table = npcm750_vcd_of_match_table,
 	},
-	.probe		= npcm_vcd_probe,
-	.remove		= npcm_vcd_remove,
+	.probe		= npcm750_vcd_probe,
+	.remove		= npcm750_vcd_remove,
 };
 
-module_platform_driver(npcm_vcd_driver);
+module_platform_driver(npcm750_vcd_driver);
 MODULE_DESCRIPTION("Nuvoton NPCM VCD Driver");
 MODULE_AUTHOR("KW Liu <kwliu@nuvoton.com>");
 MODULE_LICENSE("GPL v2");
