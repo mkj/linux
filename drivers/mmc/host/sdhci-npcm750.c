@@ -223,6 +223,9 @@ static int sdhci_probe(struct platform_device *pdev)
 	    host->quirks |= SDHCI_QUIRK_DELAY_AFTER_POWER;		
 	    host->quirks2 = SDHCI_QUIRK2_NO_1_8_V | SDHCI_QUIRK2_STOP_WITH_TC;
     }
+	
+	host->quirks |= SDHCI_QUIRK_NO_LED;		
+	
 	ret = sdhci_add_host(host);
 	if (ret) {
 		dev_dbg(&pdev->dev, "error adding host\n");
