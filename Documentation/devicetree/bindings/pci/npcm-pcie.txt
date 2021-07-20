@@ -1,0 +1,47 @@
+* NPCM PCIe Root Complex description
+
+Required properties:
+- #address-cells: Address representation for root ports, set to <3>
+- #size-cells: Size representation for root ports, set to <2>
+- #interrupt-cells: specifies the number of cells needed to encode an
+	interrupt source. The value must be 1.
+- compatible: Should contain "nuvoton,npcm845-pcie"
+- reg : the first contains the register location and length,
+        the second contains the configuration window address and length
+- device_type: must be "pci"
+- resets : phandle to the reset control for this device.
+- interrupts: contain PCIe interrupt.
+- interrupt-map-mask,
+  interrupt-map: standard PCIe properties to define the mapping of the
+	PCI interface to interrupt numbers.
+- ranges: ranges for the PCIe memory regions
+	Please refer to the standard PCI bus binding document for a more
+	detailed explanation
+
+Optional properties:
+- bus-range:	PCI bus numbers covered
+
+NOTE:
+The core provides a single interrupt for MSI messages. So,
+created a interrupt controller node to support 'interrupt-map' DT
+functionality.
+
+
+Example:
+++++++++
+	pcie: pcie@e1000000 {
+		compatible = "nuvoton,npcm845-pcie";
+		device_type = "pci";
+		reg = <0x0 0xE1000000 0x0 0x1000>,
+			<0x0 0xE8000000 0x0 0x1000>;	
+		bus-range = <0x0 0xF>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+ 		ranges = <0x01000000 0 0xe9000000 0x0 0xe9000000 0 0x01000000 
+			  0x02000000 0 0xea000000 0x0 0xea000000 0 0x04000000>;
+		resets = <&rstc NPCM8XX_RESET_IPSRST4 NPCM8XX_RESET_PCIE_RC>;
+		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-map-mask = <0 0 0 7>;
+		interrupt-map = <0 0 0 1 &gic GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+	};
