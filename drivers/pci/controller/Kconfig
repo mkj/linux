@@ -242,6 +242,16 @@ config PCIE_MEDIATEK
 	  Say Y here if you want to enable PCIe controller support on
 	  MediaTek SoCs.
 
+config PCIE_NPCM
+	tristate "NPCM PCIe controller"
+	depends on ARCH_NPCM || COMPILE_TEST
+	depends on OF
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCI_MSI_ARCH_FALLBACKS
+	help
+	  Say Y here if you want to enable PCIe controller support on
+	  Nuvoton BMC SoCs.
+
 config PCIE_TANGO_SMP8759
 	bool "Tango SMP8759 PCIe controller (DANGEROUS)"
 	depends on ARCH_TANGO && PCI_MSI && OF
