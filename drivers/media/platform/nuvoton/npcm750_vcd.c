@@ -443,37 +443,68 @@ static const res_tlb res_tlbs[] = {
 
 static const size_t restlb_cnt = sizeof(res_tlbs) / sizeof(res_tlb);
 
-static void npcm750_vcd_claer_gmmap(struct npcm750_vcd *priv)
+static u32 npcm750_vcd_get_gmmap(struct npcm750_vcd *priv)
 {
-#ifdef CONFIG_ARCH_NPCM7XX
 	struct regmap *gcr = priv->gcr_regmap;
-	u32 intcr, gmmap;
-	void __iomem *baseptr;
+	u32 intcr, gmmap, addr;
 
+#ifdef CONFIG_ARCH_NPCM7XX
 	regmap_read(gcr, INTCR3, &intcr);
 	gmmap = (intcr & INTCR3_GMMAP_MASK);
 
 	switch (gmmap){
 	case INTCR3_GMMAP_128MB:
-		baseptr = ioremap(ADDR_GMMAP_128MB, GMMAP_LENGTH);
+		addr = ADDR_GMMAP_128MB;
 		break;
 	case INTCR3_GMMAP_256MB:
-		baseptr = ioremap(ADDR_GMMAP_256MB, GMMAP_LENGTH);
+		addr = ADDR_GMMAP_256MB;
 		break;
 	case INTCR3_GMMAP_512MB:
-		baseptr = ioremap(ADDR_GMMAP_512MB, GMMAP_LENGTH);
+		addr = ADDR_GMMAP_512MB;
 		break;
 	case INTCR3_GMMAP_1GB:
-		baseptr = ioremap(ADDR_GMMAP_1GB, GMMAP_LENGTH);
+		addr = ADDR_GMMAP_1GB;
 		break;
 	case INTCR3_GMMAP_2GB:
-		baseptr = ioremap(ADDR_GMMAP_2GB, GMMAP_LENGTH);
+		addr = ADDR_GMMAP_2GB;
 		break;
 	}
+#else
+	regmap_read(gcr, INTCR4, &intcr);
+	gmmap = (intcr & INTCR4_GMMAP_MASK);
 
+	switch (gmmap){
+	case INTCR4_GMMAP_512MB:
+		addr = ADDR_GMMAP_512MB;
+		break;
+	case INTCR4_GMMAP_512MB_ECC:
+		addr = ADDR_GMMAP_512MB_ECC;
+		break;
+	case INTCR4_GMMAP_1GB:
+		addr = ADDR_GMMAP_1GB;
+		break;
+	case INTCR4_GMMAP_1GB_ECC:
+		addr = ADDR_GMMAP_1GB_ECC;
+		break;
+	case INTCR4_GMMAP_2GB:
+		addr = ADDR_GMMAP_2GB;
+		break;
+	case INTCR4_GMMAP_2GB_ECC:
+		addr = ADDR_GMMAP_2GB_ECC;
+		break;
+	}
+#endif
+	return addr;
+}
+
+static void npcm750_vcd_claer_gmmap(struct npcm750_vcd *priv)
+{
+	void __iomem *baseptr;
+	u32 addr = npcm750_vcd_get_gmmap(priv);
+
+	baseptr = ioremap(addr, GMMAP_LENGTH);
 	memset(baseptr, 0, GMMAP_LENGTH);
 	iounmap(baseptr);
-#endif
 }
 
 static u8 npcm750_vcd_is_mga(struct npcm750_vcd *priv)
@@ -1511,7 +1542,7 @@ static const struct file_operations npcm750_vcd_fops = {
 
 static int npcm_gfx_ram(struct npcm750_vcd *priv)
 {
-	int ret = 0;
+	int n = 0;
 	struct resource resm;
 	struct device *dev = priv->dev;
 	struct device_node *node;
@@ -1519,21 +1550,20 @@ static int npcm_gfx_ram(struct npcm750_vcd *priv)
 
 	node = of_parse_phandle(dev->of_node, "memory-region", 1);
 	if (node) {
-		ret = of_address_to_resource(node, 0, &resm);
-		of_node_put(node);
-		if (ret) {
-			dev_err(dev, "Couldn't address to resource for gfx reserved memory\n");
-			return -ENODEV;
+		while (!of_address_to_resource(node, n, &resm)) {
+			if (resm.start == npcm750_vcd_get_gmmap(priv)) {
+				len = (u32)resource_size(&resm);
+				start = (u32)resm.start;
+				break;
+			}
+			n++;
 		}
-
-		len = (u32)resource_size(&resm);
-		start = (u32)resm.start;
 	} else {
 		dev_dbg(dev, "Cannnot find gfx memory-region\n");
 		return 0;
 	}
 
-	if (!devm_request_mem_region(dev, start, len, "gfx_ram")) {
+	if (start == 0 || !devm_request_mem_region(dev, start, len, "gfx_ram")) {
 		dev_err(dev, "can't reserve gfx ram start 0x%x size 0x%x\n", start, len);
 		return -ENXIO;
 	}

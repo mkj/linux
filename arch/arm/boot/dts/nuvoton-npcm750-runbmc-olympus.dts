@@ -69,6 +69,13 @@
 			no-map;
 		};
 
+		gfx_memory: framebuffer@0x1f000000 {
+			reg = <0x07000000 0xc00000>, <0x0f000000 0xc00000>,
+			<0x1f000000 0xc00000>, <0x3f000000 0xc00000>,
+			<0x7f000000 0xc00000>;
+			no-map;
+		};
+
 		ece_memory: framebuffer@0x1e800000 {
 			reg = <0x1e800000 0x600000>;
 			no-map;
@@ -978,7 +985,7 @@
 
 &vcd {
 	status = "okay";
-	memory-region = <&vcd_memory>;
+	memory-region = <&vcd_memory>, <&gfx_memory>;
 };
 
 &ece {
