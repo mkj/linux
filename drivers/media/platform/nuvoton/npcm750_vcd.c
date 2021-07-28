@@ -499,12 +499,14 @@ static u32 npcm750_vcd_get_gmmap(struct npcm750_vcd *priv)
 
 static void npcm750_vcd_claer_gmmap(struct npcm750_vcd *priv)
 {
+#ifdef CONFIG_ARCH_NPCM7XX
 	void __iomem *baseptr;
 	u32 addr = npcm750_vcd_get_gmmap(priv);
 
 	baseptr = ioremap(addr, GMMAP_LENGTH);
 	memset(baseptr, 0, GMMAP_LENGTH);
 	iounmap(baseptr);
+#endif
 }
 
 static u8 npcm750_vcd_is_mga(struct npcm750_vcd *priv)
