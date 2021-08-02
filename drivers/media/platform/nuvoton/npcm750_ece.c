@@ -107,7 +107,7 @@ struct ece_ioctl_cmd {
 };
 
 struct npcm750_ece {
-	void __iomem	*virt;
+	void *virt;
 	struct regmap *ece_regmap;
 	struct mutex mlock; /* for ioctl*/
 	spinlock_t lock;	/*for irq*/
@@ -148,7 +148,7 @@ static u32 npcm750_ece_get_ed_size(struct npcm750_ece *priv, u32 offset)
 	struct regmap *ece = priv->ece_regmap;
 	u32 size, gap;
 	int timeout;
-	void *__iomem buffer = priv->virt + offset;
+	void *buffer = priv->virt + offset;
 
 	timeout = wait_for_completion_interruptible_timeout(&priv->complete,
 		ECE_OP_TIMEOUT);
@@ -433,10 +433,6 @@ long npcm750_ece_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		regmap_update_bits(ece,
 			DDA_CTRL, DDA_CTRL_INTEN, (u32)~DDA_CTRL_INTEN);
 
-#if 1
-		// WAR: Force to reset offset for npcm8xx
-		npcm750_ece_clear_rect_offset(priv);
-#endif
 		if (ed_size == 0) {
 			err = -EFAULT;
 			break;
@@ -520,22 +516,22 @@ struct file_operations const npcm750_ece_fops = {
 static int npcm750_ece_device_create(struct npcm750_ece *priv)
 {
 	int ret = 0;
-	struct resource resm;
+	struct resource res;
 	struct device *dev = priv->dev;
 	struct device_node *node;
 
 	/* optional. */
 	node = of_parse_phandle(dev->of_node, "memory-region", 0);
 	if (node) {
-		ret = of_address_to_resource(node, 0, &resm);
+		ret = of_address_to_resource(node, 0, &res);
 		of_node_put(node);
 		if (ret) {
 			dev_err(dev, "Couldn't address to resource for reserved memory\n");
 			return -ENODEV;
 		}
 
-		priv->size = (u32)resource_size(&resm);
-		priv->dma = (u32)resm.start;
+		priv->size = (u32)resource_size(&res);
+		priv->dma = (u32)res.start;
 	} else {
 		dev_err(dev, "Cannnot find memory-region\n");
 		return -ENODEV;
@@ -548,7 +544,9 @@ static int npcm750_ece_device_create(struct npcm750_ece *priv)
 		return -ENXIO;
 	}
 
-	priv->virt = ioremap(priv->dma, priv->size);
+	priv->virt = devm_memremap(dev, priv->dma,
+					priv->size,
+					MEMREMAP_WC);
 	if (!priv->virt) {
 		dev_err(dev, "%s: cannot map ece memory region\n",
 			 __func__);
@@ -651,16 +649,17 @@ err:
 static int npcm750_ece_remove(struct platform_device *pdev)
 {
 	struct npcm750_ece *priv = platform_get_drvdata(pdev);
+	struct device *dev = priv->dev;
 
 	npcm750_ece_stop(priv);
+
+	devm_memunmap(dev, priv->virt);
 
 	misc_deregister(&priv->miscdev);
 
 	kfree(priv->miscdev.name);
 
 	mutex_destroy(&priv->mlock);
-
-	iounmap(priv->virt);
 
 	kfree(priv);
 

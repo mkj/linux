@@ -144,7 +144,6 @@
 #define  VCD_INTE_HSYNC_IE	BIT(11)
 #define  VCD_INTE_BSD2_IE	BIT(12)
 #define  VCD_INTE_BSD3_IE	BIT(13)
-#define  VCD_INTE_VAL	(VCD_INTE_DONE_IE)
 
 #define VCD_RCHG	0x8028
 #define VCD_RCHG_TIM_PRSCL_OFFSET 9
@@ -255,7 +254,7 @@
 #endif
 
 /* Total 16MB, but 4MB preserved*/
-#define GMMAP_LENGTH	0xC00000
+#define GMMAP_LENGTH	0xc00000
 
 #define MFSEL1 0x0c
 #define  MFSEL1_DVH1SEL	BIT(27)
@@ -364,12 +363,12 @@ struct rect_info {
 	struct rect_list *list;
 	struct rect_list *first;
 	struct list_head *head;
-	int index;
-	int tile_perline;
-	int tile_perrow;
-	int offset_perline;
-	int tile_size;
-	int tile_cnt;
+	u32 index;
+	u32 tile_perline;
+	u32 tile_perrow;
+	u32 offset_perline;
+	u32 tile_size;
+	u32 tile_cnt;
 };
 
 struct npcm750_vcd {
@@ -385,6 +384,9 @@ struct npcm750_vcd {
 	struct regmap *gfx_regmap;
 	resource_size_t size;
 	resource_size_t dma;
+	void *gfx_va;
+	resource_size_t gfx_pa;
+	resource_size_t gfx_size;
 	u32 rect_cnt;
 	u32 status;
 	char *video_name;
@@ -499,14 +501,19 @@ static u32 npcm750_vcd_get_gmmap(struct npcm750_vcd *priv)
 
 static void npcm750_vcd_claer_gmmap(struct npcm750_vcd *priv)
 {
-#ifdef CONFIG_ARCH_NPCM7XX
-	void __iomem *baseptr;
-	u32 addr = npcm750_vcd_get_gmmap(priv);
+	if (!priv->gfx_va) {
+		void *mem_base = NULL;
+		phys_addr_t pa = npcm750_vcd_get_gmmap(priv);
 
-	baseptr = ioremap(addr, GMMAP_LENGTH);
-	memset(baseptr, 0, GMMAP_LENGTH);
-	iounmap(baseptr);
-#endif
+		mem_base = memremap(pa, GMMAP_LENGTH, MEMREMAP_WC);
+		if (!mem_base)
+			return;
+
+		memset(mem_base, 0, GMMAP_LENGTH);
+		memunmap(mem_base);
+	} else {
+		memset(priv->gfx_va, 0, priv->gfx_size);
+	}
 }
 
 static u8 npcm750_vcd_is_mga(struct npcm750_vcd *priv)
@@ -690,14 +697,9 @@ npcm_short_vcd_reset(struct npcm750_vcd *priv)
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 stat;
 
-	regmap_write(vcd, VCD_INTE, 0);
-
 	regmap_update_bits(vcd, VCD_CMD, VCD_CMD_RST, VCD_CMD_RST);
 	while (!regmap_read(vcd, VCD_STAT, &stat) & !(stat & VCD_STAT_DONE))
 		continue;
-
-	regmap_write(vcd, VCD_STAT, VCD_STAT_CLEAR);
-	regmap_write(vcd, VCD_INTE, VCD_INTE_VAL);
 }
 
 static int npcm750_vcd_reset(struct npcm750_vcd *priv)
@@ -722,16 +724,6 @@ static int npcm750_vcd_reset(struct npcm750_vcd *priv)
 		gcr, INTCR2, INTCR2_GIRST2, (u32)~INTCR2_GIRST2);
 
 	return 0;
-}
-
-static void npcm750_vcd_io_reset(struct npcm750_vcd *priv)
-{
-	struct regmap *vcd = priv->vcd_regmap;
-
-	regmap_write(vcd, VCD_INTE, 0);
-	regmap_write(vcd, VCD_STAT, VCD_STAT_CLEAR);
-	npcm750_vcd_reset(priv);
-	regmap_write(vcd, VCD_INTE, VCD_INTE_VAL);
 }
 
 static void npcm750_vcd_dehs(struct npcm750_vcd *priv, int is_de)
@@ -899,9 +891,6 @@ static int npcm750_vcd_get_resolution(struct npcm750_vcd *priv)
 		(priv->info.mode != npcm750_vcd_is_mga(priv)) ||
 		(priv->hortact != hortact)) {
 
-		regmap_write(vcd, VCD_INTE, 0);
-		regmap_write(vcd, VCD_STAT, VCD_STAT_CLEAR);
-
 		if (npcm750_vcd_hres(priv) && npcm750_vcd_vres(priv)) {
 			struct regmap *gfxi = priv->gfx_regmap;
 			u32 dispst;
@@ -947,9 +936,6 @@ static int npcm750_vcd_get_resolution(struct npcm750_vcd *priv)
 
 		/* setup resolution change detect register*/
 		npcm750_vcd_detect_video_mode(priv);
-
-		/* enable interrupt */
-		regmap_write(vcd, VCD_INTE, VCD_INTE_VAL);
 
 		return 1;
 	}
@@ -1174,9 +1160,6 @@ static int npcm750_vcd_init(struct npcm750_vcd *priv)
 	/* Detect video mode */
 	npcm750_vcd_detect_video_mode(priv);
 
-	/* Enable interrupt */
-	regmap_write(vcd, VCD_INTE, VCD_INTE_VAL);
-
 	if (!priv->de_mode) {
 		regmap_update_bits(vcd, VCD_RCHG, VCD_RCHG_TIM_PRSCL,
 			0x01 << VCD_RCHG_TIM_PRSCL_OFFSET);
@@ -1383,6 +1366,8 @@ npcm_do_vcd_ioctl(struct npcm750_vcd *priv, unsigned int cmd,
 
 			regmap_update_bits(vcd, VCD_MODE, VCD_MODE_VCDE,
 				VCD_MODE_VCDE);
+			regmap_write(vcd, VCD_STAT, VCD_STAT_CLEAR);
+			regmap_write(vcd, VCD_INTE, VCD_INTE_DONE_IE);
 
 			npcm750_vcd_command(priv, vcd_cmd);
 			timeout = wait_for_completion_interruptible_timeout(&priv->complete,
@@ -1393,11 +1378,12 @@ npcm_do_vcd_ioctl(struct npcm750_vcd *priv, unsigned int cmd,
 				if (priv->status == 0)
 					regmap_read(vcd, VCD_STAT, &priv->status);
 
-				npcm750_vcd_io_reset(priv);
+				npcm750_vcd_reset(priv);
 				ret = copy_to_user(argp, &priv->status, sizeof(priv->status))
 					? -EFAULT : 0;
 			}
 
+			regmap_write(vcd, VCD_INTE, 0);
 			regmap_update_bits(vcd, VCD_MODE, VCD_MODE_VCDE,
 				(u32)~VCD_MODE_VCDE);
 
@@ -1478,7 +1464,7 @@ npcm_do_vcd_ioctl(struct npcm750_vcd *priv, unsigned int cmd,
 		break;
 	}
 	case VCD_IOCRESET:
-		npcm750_vcd_io_reset(priv);
+		npcm750_vcd_reset(priv);
 
 		break;
 	case VCD_GETREG:
@@ -1545,17 +1531,17 @@ static const struct file_operations npcm750_vcd_fops = {
 static int npcm_gfx_ram(struct npcm750_vcd *priv)
 {
 	int n = 0;
-	struct resource resm;
+	struct resource res;
 	struct device *dev = priv->dev;
 	struct device_node *node;
 	resource_size_t start, len;
 
 	node = of_parse_phandle(dev->of_node, "memory-region", 1);
 	if (node) {
-		while (!of_address_to_resource(node, n, &resm)) {
-			if (resm.start == npcm750_vcd_get_gmmap(priv)) {
-				len = (u32)resource_size(&resm);
-				start = (u32)resm.start;
+		while (!of_address_to_resource(node, n, &res)) {
+			if (res.start == npcm750_vcd_get_gmmap(priv)) {
+				len = (u32)resource_size(&res);
+				start = (u32)res.start;
 				break;
 			}
 			n++;
@@ -1570,6 +1556,16 @@ static int npcm_gfx_ram(struct npcm750_vcd *priv)
 		return -ENXIO;
 	}
 
+	priv->gfx_va = devm_memremap(dev, start, len, MEMREMAP_WC);
+	if (!priv->gfx_va) {
+		dev_err(dev, "%s: cannot map gfx memory region\n",
+			 __func__);
+		return -ENXIO;
+	}
+
+	priv->gfx_pa = start;
+	priv->gfx_size = len;
+
 	dev_info(dev, "Reserved GFX memory start 0x%x size 0x%x\n", start, len);
 	return 0;
 }
@@ -1577,21 +1573,21 @@ static int npcm_gfx_ram(struct npcm750_vcd *priv)
 static int npcm750_vcd_ram(struct npcm750_vcd *priv)
 {
 	int ret = 0;
-	struct resource resm;
+	struct resource res;
 	struct device *dev = priv->dev;
 	struct device_node *node;
 
 	node = of_parse_phandle(dev->of_node, "memory-region", 0);
 	if (node) {
-		ret = of_address_to_resource(node, 0, &resm);
+		ret = of_address_to_resource(node, 0, &res);
 		of_node_put(node);
 		if (ret) {
 			dev_err(dev, "Couldn't address to resource for vcd reserved memory\n");
 			return -ENODEV;
 		}
 
-		priv->size = (u32)resource_size(&resm);
-		priv->dma = (u32)resm.start;
+		priv->size = (u32)resource_size(&res);
+		priv->dma = (u32)res.start;
 	} else {
 		dev_err(dev, "Cannnot find vcd memory-region\n");
 		return -ENODEV;
@@ -1737,8 +1733,12 @@ err:
 static int npcm750_vcd_remove(struct platform_device *pdev)
 {
 	struct npcm750_vcd *priv = platform_get_drvdata(pdev);
+	struct device *dev = priv->dev;
 
 	npcm750_vcd_stop(priv);
+
+	if (priv->gfx_va)
+		devm_memunmap(dev, priv->gfx_va);
 
 	free_irq(priv->irq, priv->dev);
 
