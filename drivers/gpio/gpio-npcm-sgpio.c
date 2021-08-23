@@ -24,6 +24,7 @@
 #define  IOXCFG1_SFT_CLK_3	0x0D
 #define  IOXCFG1_SFT_CLK_4	0x0C
 #define  IOXCFG1_SFT_CLK_8	0x07
+#define  IOXCFG1_SFT_CLK_16	0x06
 #define  IOXCFG1_SFT_CLK_32	0x05
 #define  IOXCFG1_SFT_CLK_1024	0x00
 #define  IOXCFG1_SCLK_POL BIT(4)
@@ -260,10 +261,15 @@ static int nuvoton_sgpio_setup_clk(struct nuvoton_sgpio *gpio, u32 sgpio_freq)
 	sgpio_clk_div = (apb_freq / sgpio_freq) + 1;
 	tmp = ioread8(gpio->base + IOXCFG1) & ~IOXCFG1_SFT_CLK;
 
+#ifdef CONFIG_ARCH_NPCM7XX
 	if (sgpio_clk_div == 2)
 		iowrite8(IOXCFG1_SFT_CLK_2 | tmp, gpio->base + IOXCFG1);
 	else if (sgpio_clk_div == 3)
 		iowrite8(IOXCFG1_SFT_CLK_3 | tmp, gpio->base + IOXCFG1);
+#else
+	if (sgpio_clk_div == 16)
+		iowrite8(IOXCFG1_SFT_CLK_16 | tmp, gpio->base + IOXCFG1);
+#endif
 	else if (sgpio_clk_div == 4)
 		iowrite8(IOXCFG1_SFT_CLK_4 | tmp, gpio->base + IOXCFG1);
 	else if (sgpio_clk_div == 8)
@@ -280,6 +286,7 @@ static int nuvoton_sgpio_setup_clk(struct nuvoton_sgpio *gpio, u32 sgpio_freq)
 
 static const struct of_device_id nuvoton_sgpio_of_table[] = {
 	{ .compatible = "nuvoton,npcm7xx-sgpio" },
+	{ .compatible = "nuvoton,npcm845-sgpio" },
 	{}
 };
 

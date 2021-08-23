@@ -421,6 +421,15 @@
 				status = "okay";
 			};
 
+			sgpio2: sgpio@102000 {
+				status = "okay";
+				bus-frequency = <16000000>;
+				nin_gpios = <64>;
+				nout_gpios = <64>;
+				gpio-line-names = "","","","","","","","",
+					"g_led","","","","","","","";
+			};
+
 			pwm_fan:pwm-fan-controller@103000 {
 				status = "okay";
 				pinctrl-names = "default";
@@ -523,7 +532,11 @@
 				&pin241_slew
 				&pin242_slew
 				&pin243_slew
-				&spix_pins>;
+				&spix_pins
+				&pin4_slew
+				&pin5_slew
+				&pin6_slew
+				&pin7_slew>;
 	};
 };
 
