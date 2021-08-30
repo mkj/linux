@@ -49,6 +49,7 @@
 #define VCD_IOC_MAXNR     10
 
 #define VCD_OP_TIMEOUT msecs_to_jiffies(100)
+#define RESET_TIMEOUT  msecs_to_jiffies(100)
 
 #define DEVICE_NAME "nuvoton-vcd"
 
@@ -397,6 +398,7 @@ struct npcm750_vcd {
 	int irq;
 	struct completion complete;
 	u32 hortact;
+	wait_queue_head_t wait;
 };
 
 typedef struct
@@ -691,27 +693,51 @@ npcm750_vcd_capres(struct npcm750_vcd *priv, u32 width, u32 height)
 
 	return 0;
 }
+
+static bool
+npcm_vcd_free(struct npcm750_vcd *priv)
+{
+	struct regmap *vcd = priv->vcd_regmap;
+	u32 stat;
+
+	regmap_read(vcd, VCD_STAT, &stat);
+	if (!(stat & VCD_STAT_BUSY) && (stat & VCD_STAT_DONE))
+		return true;
+	else
+		return false;
+}
+
 static void
 npcm_short_vcd_reset(struct npcm750_vcd *priv)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 stat;
+	int rc = 0;
 
 	regmap_update_bits(vcd, VCD_CMD, VCD_CMD_RST, VCD_CMD_RST);
-	while (!regmap_read(vcd, VCD_STAT, &stat) & !(stat & VCD_STAT_DONE))
-		continue;
+	rc = wait_event_interruptible_timeout(priv->wait,
+				npcm_vcd_free(priv),
+				RESET_TIMEOUT);
+	if (rc <=0 )
+		dev_err(priv->dev, "Timed out: VCD Short Reset 0x%x\n", stat);
+
+	regmap_write(vcd, VCD_STAT, VCD_STAT_CLEAR);
 }
 
-static int npcm750_vcd_reset(struct npcm750_vcd *priv)
+static void npcm750_vcd_reset(struct npcm750_vcd *priv)
 {
 	struct regmap *gcr = priv->gcr_regmap;
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 stat;
+	int rc;
 
 	regmap_update_bits(vcd, VCD_CMD, VCD_CMD_RST, VCD_CMD_RST);
 
-	while (!regmap_read(vcd, VCD_STAT, &stat) & !(stat & VCD_STAT_DONE))
-		continue;
+	rc = wait_event_interruptible_timeout(priv->wait,
+					npcm_vcd_free(priv),
+					RESET_TIMEOUT);
+	if (rc <= 0)
+		dev_err(priv->dev, "Timed out: VCD Reset 0x%x\n", stat);
 
 	/* Active graphic reset */
 	regmap_update_bits(
@@ -722,8 +748,6 @@ static int npcm750_vcd_reset(struct npcm750_vcd *priv)
 	/* Inactive graphic reset */
 	regmap_update_bits(
 		gcr, INTCR2, INTCR2_GIRST2, (u32)~INTCR2_GIRST2);
-
-	return 0;
 }
 
 static void npcm750_vcd_dehs(struct npcm750_vcd *priv, int is_de)
@@ -822,7 +846,7 @@ static void npcm750_vcd_detect_video_mode(struct npcm750_vcd *priv)
 			priv->info.line_pitch);
 }
 
-static u8 npcm750_vcd_is_busy(struct npcm750_vcd *priv)
+static bool npcm750_vcd_is_busy(struct npcm750_vcd *priv)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 stat;
@@ -833,7 +857,7 @@ static u8 npcm750_vcd_is_busy(struct npcm750_vcd *priv)
 	return (stat == VCD_STAT_BUSY);
 }
 
-static u8 npcm750_vcd_op_done(struct npcm750_vcd *priv)
+static bool npcm750_vcd_op_done(struct npcm750_vcd *priv)
 {
 	struct regmap *vcd = priv->vcd_regmap;
 	u32 vdisp;
@@ -1372,6 +1396,11 @@ npcm_do_vcd_ioctl(struct npcm750_vcd *priv, unsigned int cmd,
 			npcm750_vcd_command(priv, vcd_cmd);
 			timeout = wait_for_completion_interruptible_timeout(&priv->complete,
 			    VCD_OP_TIMEOUT);
+
+			regmap_write(vcd, VCD_INTE, 0);
+			regmap_update_bits(vcd, VCD_MODE, VCD_MODE_VCDE,
+				(u32)~VCD_MODE_VCDE);
+
 			if (timeout <= 0 || !npcm750_vcd_op_done(priv)) {
 				dev_dbg(priv->dev, "VCD_OP_BUSY\n");
 
@@ -1382,10 +1411,6 @@ npcm_do_vcd_ioctl(struct npcm750_vcd *priv, unsigned int cmd,
 				ret = copy_to_user(argp, &priv->status, sizeof(priv->status))
 					? -EFAULT : 0;
 			}
-
-			regmap_write(vcd, VCD_INTE, 0);
-			regmap_update_bits(vcd, VCD_MODE, VCD_MODE_VCDE,
-				(u32)~VCD_MODE_VCDE);
 
 			if (vcd_cmd != VCD_CMD_OP_CAPTURE && timeout > 0) {
 				regmap_update_bits(vcd, VCD_MODE, VCD_MODE_IDBC,
@@ -1721,6 +1746,7 @@ static int npcm750_vcd_probe(struct platform_device *pdev)
 	mutex_init(&priv->mlock);
 	INIT_LIST_HEAD(&priv->list);
 	init_completion(&priv->complete);
+	init_waitqueue_head(&priv->wait);
 
 	dev_info(dev, "NPCM VCD Driver probed %s\n", VCD_VERSION);
 	return 0;
