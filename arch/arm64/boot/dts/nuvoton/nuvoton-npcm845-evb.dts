@@ -438,9 +438,7 @@
 					&pwm4_pins &pwm5_pins
 					&pwm6_pins &pwm7_pins
 					&fanin0_pins &fanin1_pins
-					&fanin2_pins &fanin3_pins
-					&fanin4_pins &fanin5_pins
-					&fanin6_pins &fanin7_pins>;
+					&fanin2_pins &fanin3_pins>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fan@0 {
