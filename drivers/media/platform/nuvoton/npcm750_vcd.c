@@ -32,6 +32,7 @@
 #include <asm/fb.h>
 #include <linux/completion.h>
 #include <linux/miscdevice.h>
+#include <linux/reset.h>
 
 #define VCD_VERSION "1.0.0"
 
@@ -399,6 +400,7 @@ struct npcm750_vcd {
 	struct completion complete;
 	u32 hortact;
 	wait_queue_head_t wait;
+	struct reset_control *reset;
 };
 
 typedef struct
@@ -446,6 +448,14 @@ static const res_tlb res_tlbs[] = {
 };
 
 static const size_t restlb_cnt = sizeof(res_tlbs) / sizeof(res_tlb);
+
+static void npcm750_vcd_ip_reset(struct npcm750_vcd *priv)
+{
+	reset_control_assert(priv->reset);
+	msleep(100);
+	reset_control_deassert(priv->reset);
+	msleep(100);
+}
 
 static u32 npcm750_vcd_get_gmmap(struct npcm750_vcd *priv)
 {
@@ -1140,9 +1150,14 @@ static int npcm750_vcd_init(struct npcm750_vcd *priv)
 	/* Select KVM GFX input */
 	regmap_update_bits(gcr, MFSEL1, MFSEL1_DVH1SEL, (u32)~MFSEL1_DVH1SEL);
 
+	/* IP Reset */
+	npcm750_vcd_ip_reset(priv);
+
+	/* Check VCD if ready */
 	if (npcm750_vcd_ready(priv))
 		return	-ENODEV;
 
+	/* VCD/GFX Moudle reset */
 	npcm750_vcd_reset(priv);
 
 	/* Initialise capture resolution to a non-zero value */
@@ -1732,6 +1747,12 @@ static int npcm750_vcd_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->vcd_regmap)) {
 		dev_err(dev, "Failed to init regmap!\n");
 		ret = PTR_ERR(priv->vcd_regmap);
+		goto err;
+	}
+
+	priv->reset = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(priv->reset)) {
+		ret = PTR_ERR(priv->reset);
 		goto err;
 	}
 

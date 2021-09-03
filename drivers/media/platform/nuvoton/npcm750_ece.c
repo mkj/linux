@@ -29,6 +29,7 @@
 #include <asm/fb.h>
 #include <linux/regmap.h>
 #include <linux/miscdevice.h>
+#include <linux/reset.h>
 
 #define ECE_VERSION "1.0.0"
 
@@ -122,7 +123,16 @@ struct npcm750_ece {
 	atomic_t clients;
 	int irq;
 	struct completion complete;
+	struct reset_control *reset;
 };
+
+static void npcm750_ece_ip_reset(struct npcm750_ece *priv)
+{
+	reset_control_assert(priv->reset);
+	msleep(100);
+	reset_control_deassert(priv->reset);
+	msleep(100);
+}
 
 /* Clear Offset of Compressed Rectangle*/
 static void npcm750_ece_clear_rect_offset(struct npcm750_ece *priv)
@@ -280,6 +290,8 @@ static void npcm750_ece_reset(struct npcm750_ece *priv)
 /* Initialise the ECE block and interface library */
 static int npcm750_ece_init(struct npcm750_ece *priv)
 {
+	npcm750_ece_ip_reset(priv);
+
 	npcm750_ece_reset(priv);
 
 	npcm750_ece_set_enc_dba(priv, priv->dma);
@@ -624,6 +636,12 @@ static int npcm750_ece_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->ece_regmap)) {
 		dev_err(dev, "Failed to init regmap!\n");
 		ret = PTR_ERR(priv->ece_regmap);
+		goto err;
+	}
+
+	priv->reset = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(priv->reset)) {
+		ret = PTR_ERR(priv->reset);
 		goto err;
 	}
 
