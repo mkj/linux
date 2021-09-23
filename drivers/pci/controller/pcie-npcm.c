@@ -73,6 +73,8 @@
 #define PCI_RC_ATTR_TRSF_PARAM_POS		16
 #define PCI_RC_ATTR_TRSL_ID_POS			0
 
+#define PCI_RC_MAX_AXI_PCI_WIN			5
+
 #define IRQ_REQUEST
 #define PCI_BAR_REG 0x10
 #define PCI_CMD_STATUS_REG  0x4
@@ -363,40 +365,47 @@ static void npcm_pcie_rc_init_config_window(struct npcm_pcie *pcie)
 	struct of_pci_range_parser parser;
 	struct device *dev = pcie->dev;
 	struct device_node *node = dev->of_node;
+	u32 start_win_num = 2;
 
 	if (of_pci_range_parser_init(&parser, node))
 		return;
+
+	/* Enable configuration window */
+	iowrite32((pcie->res->start & 0xFFFFF000) | (CFG_SIZE_4K << 1) | RCA_WIN_EN, pcie->reg_base + RCAPnSAL(1));
+	iowrite32(0, pcie->reg_base + RCAPnSAH(1));
+	iowrite32(pcie->res->start, pcie->reg_base + RCAPnTAL(1));
+	iowrite32(0, pcie->reg_base + RCAPnTAH(1));
+	iowrite32(TRSF_PARAM_CONFIG | TRSL_ID_PCIE_CONFIG, pcie->reg_base + RCAPnTP(1));
 
 	for_each_of_pci_range(&parser, &range) {
 		unsigned long size;
 		int bit_size;
 
+		if (start_win_num > PCI_RC_MAX_AXI_PCI_WIN)
+			continue;
+
 		size = range.size;
 		bit_size = find_first_bit(&size, 32);
 		switch (range.flags & IORESOURCE_TYPE_BITS) {
 		case IORESOURCE_IO:
-			iowrite32(range.cpu_addr, pcie->reg_base + RCAPnTAL(3));
-			iowrite32(0, pcie->reg_base + RCAPnTAH(3));
-			iowrite32(TRSF_PARAM_IO | TRSL_ID_PCIE_CONFIG, pcie->reg_base + RCAPnTP(3));
-			iowrite32(0, pcie->reg_base + RCAPnSAH(3));
-			iowrite32((range.cpu_addr & 0xFFFFF000) | ((bit_size - 1) << 1) | RCA_WIN_EN, pcie->reg_base + RCAPnSAL(3));
+			iowrite32(range.pci_addr, pcie->reg_base + RCAPnTAL(start_win_num));
+			iowrite32(0, pcie->reg_base + RCAPnTAH(start_win_num));
+			iowrite32(TRSF_PARAM_IO | TRSL_ID_PCIE_CONFIG, pcie->reg_base + RCAPnTP(start_win_num));
+			iowrite32(0, pcie->reg_base + RCAPnSAH(start_win_num));
+			iowrite32((range.cpu_addr & 0xFFFFF000) | ((bit_size - 1) << 1) | RCA_WIN_EN, pcie->reg_base + RCAPnSAL(start_win_num));
 			break;
 		case IORESOURCE_MEM:
-			iowrite32(range.cpu_addr, pcie->reg_base + RCAPnTAL(2));
-			iowrite32(0, pcie->reg_base + RCAPnTAH(2));
-			iowrite32(TRSF_PARAM_MEMORY | TRSL_ID_PCIE_TX_RX, pcie->reg_base + RCAPnTP(2));
-			iowrite32(0, pcie->reg_base + RCAPnSAH(2));
-			iowrite32((range.cpu_addr & 0xFFFFF000) | ((bit_size - 1) << 1) | RCA_WIN_EN, pcie->reg_base + RCAPnSAL(2));
+			iowrite32(range.pci_addr, pcie->reg_base + RCAPnTAL(start_win_num));
+			iowrite32(0, pcie->reg_base + RCAPnTAH(start_win_num));
+			iowrite32(TRSF_PARAM_MEMORY | TRSL_ID_PCIE_TX_RX, pcie->reg_base + RCAPnTP(start_win_num));
+			iowrite32(0, pcie->reg_base + RCAPnSAH(start_win_num));
+			iowrite32((range.cpu_addr & 0xFFFFF000) | ((bit_size - 1) << 1) | RCA_WIN_EN, pcie->reg_base + RCAPnSAL(start_win_num));
 			break;
 		}
+
+		start_win_num++;
 	}
 
-	iowrite32((pcie->res->start & 0xFFFFF000) | (CFG_SIZE_4K << 1) | RCA_WIN_EN, pcie->reg_base + RCAPnSAL(1));
-	iowrite32(0, pcie->reg_base + RCAPnSAH(1));
-	/* Translation address of 0 */
-	iowrite32(0, pcie->reg_base + RCAPnTAL(1));
-	iowrite32(0, pcie->reg_base + RCAPnTAH(1));
-	iowrite32(TRSF_PARAM_CONFIG | TRSL_ID_PCIE_CONFIG, pcie->reg_base + RCAPnTP(1));
 }
 
 static int npcm_config_read(struct pci_bus *bus, 
