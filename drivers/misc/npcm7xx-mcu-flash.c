@@ -52,20 +52,15 @@ enum MCU_PIN {
 
 static DEFINE_SPINLOCK(mcu_file_lock);
 
-struct mcu_pins {
-	struct gpio_desc *gpiod;
-	unsigned int gpio;
-	int bit_offset;
-};
-
 struct npcm7xx_mcu {
 	struct device		*dev;
 	struct miscdevice	miscdev;
-	struct mcu_pins		pins[PIN_TOTAL];
+	struct gpio_desc	*pins[PIN_TOTAL];
 	struct regmap		*gcr_regmap;
 	bool				is_open;
 	u32					dev_num;
 	u32					smb_offset;
+	u32					mfsel_offset;
 };
 
 static u8 spi_send_receive_byte(struct npcm7xx_mcu *mcu, u8 data_to_send)
@@ -78,23 +73,23 @@ static u8 spi_send_receive_byte(struct npcm7xx_mcu *mcu, u8 data_to_send)
 		/* New SPI MOSI */
 		spi_mosi = (data_to_send >> (7 - bit_count)) & 0x01;
 		if (spi_mosi == 0)
-			gpiod_set_value(mcu->pins[PIN_MOSI].gpiod, 0);
+			gpiod_set_value(mcu->pins[PIN_MOSI], 0);
 		else
-			gpiod_set_value(mcu->pins[PIN_MOSI].gpiod, 1);
+			gpiod_set_value(mcu->pins[PIN_MOSI], 1);
 
 		/* Read SPI MISO */
-		spi_miso = gpiod_get_value(mcu->pins[PIN_MISO].gpiod);
+		spi_miso = gpiod_get_value(mcu->pins[PIN_MISO]);
 		data_received |= spi_miso << (7 - bit_count);
 
 		for (delay = 0; delay < DELAY; delay++)
-			spi_miso = gpiod_get_value(mcu->pins[PIN_MISO].gpiod);
+			spi_miso = gpiod_get_value(mcu->pins[PIN_MISO]);
 
-		gpiod_set_value(mcu->pins[PIN_CLK].gpiod, 1);
+		gpiod_set_value(mcu->pins[PIN_CLK], 1);
 
 		for (delay = 0; delay < DELAY; delay++)
-			spi_miso = gpiod_get_value(mcu->pins[PIN_MISO].gpiod);
+			spi_miso = gpiod_get_value(mcu->pins[PIN_MISO]);
 
-		gpiod_set_value(mcu->pins[PIN_CLK].gpiod, 0);
+		gpiod_set_value(mcu->pins[PIN_CLK], 0);
 	}
 
 	return (data_received);
@@ -293,15 +288,15 @@ static bool npcm7xx_mcu_signature(struct npcm7xx_mcu *mcu)
 }
 
 /* Configure mcu pins as GPIO function */
-static void npcm7xx_mcu_config_gpio(struct npcm7xx_mcu *mcu)
+static inline void npcm7xx_mcu_config_gpio(struct npcm7xx_mcu *mcu)
 {
 	int val;
 
 	val = SMBSEL_GPIO;
 	regmap_update_bits(mcu->gcr_regmap,
-			   MFSEL3_OFFSET,
-			   (SMBSEL_MASK << mcu->smb_offset),
-			   (val << mcu->smb_offset));
+			mcu->mfsel_offset,
+			(SMBSEL_MASK << mcu->smb_offset),
+			(val << mcu->smb_offset));
 }
 
 /* Configure mcu pins as SMB function */
@@ -311,9 +306,9 @@ static inline void npcm7xx_mcu_config_smb(struct npcm7xx_mcu *mcu)
 
 	val = SMBSEL_SMB;
 	regmap_update_bits(mcu->gcr_regmap,
-			   MFSEL3_OFFSET,
-			   (SMBSEL_MASK << mcu->smb_offset),
-			   (val << mcu->smb_offset));
+			mcu->mfsel_offset,
+			(SMBSEL_MASK << mcu->smb_offset),
+			(val << mcu->smb_offset));
 }
 
 static int npcm7xx_mcu_init(struct npcm7xx_mcu *mcu)
@@ -324,18 +319,18 @@ static int npcm7xx_mcu_init(struct npcm7xx_mcu *mcu)
 	npcm7xx_mcu_config_gpio(mcu);
 
 	/* Keep SCL and SDA low */
-	gpiod_direction_output(mcu->pins[PIN_CLK].gpiod, 0);
+	gpiod_direction_output(mcu->pins[PIN_CLK], 0);
 	udelay(1);
-	gpiod_direction_output(mcu->pins[PIN_MOSI].gpiod, 0);
+	gpiod_direction_output(mcu->pins[PIN_MOSI], 0);
 
-	gpiod_direction_output(mcu->pins[PIN_CLK].gpiod, 0);
+	gpiod_direction_output(mcu->pins[PIN_CLK], 0);
 
 	/* Set RESET high */
-	gpiod_direction_output(mcu->pins[PIN_RESET].gpiod, 1);
+	gpiod_direction_output(mcu->pins[PIN_RESET], 1);
 	mdelay(5);
 
 	/* Set RESET low */
-	gpiod_direction_output(mcu->pins[PIN_RESET].gpiod, 0);
+	gpiod_direction_output(mcu->pins[PIN_RESET], 0);
 	mdelay(20);
 
 	if (npcm7xx_mcu_sync(mcu)) {
@@ -361,6 +356,7 @@ static int npcm7xx_mcu_init(struct npcm7xx_mcu *mcu)
 	while (npcm7xx_mcu_ready(mcu) == false)
 		dev_info(mcu->dev, ".");
 	dev_info(mcu->dev, "DONE\n");
+
 	return 0;
 }
 
@@ -401,7 +397,7 @@ static ssize_t npcm7xx_mcu_write(struct file *file,
 	npcm7xx_mcu_config_smb(mcu);
 
 	// Set RESET high
-	gpiod_direction_output(mcu->pins[PIN_RESET].gpiod, 1);
+	gpiod_direction_output(mcu->pins[PIN_RESET], 1);
 
 	return count;
 }
@@ -474,7 +470,7 @@ static int npcm7xx_mcu_probe(struct platform_device *pdev)
 {
 	struct npcm7xx_mcu *mcu;
 	struct gpio_desc *gpiod;
-	struct gpio_chip *chip;
+	struct device_node *np = pdev->dev.of_node;
 	u32 value;
 	int i, ret;
 
@@ -489,10 +485,14 @@ static int npcm7xx_mcu_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	mcu->dev = &pdev->dev;
 
-	mcu->gcr_regmap =
-		syscon_regmap_lookup_by_compatible("nuvoton,npcm750-gcr");
+	if (of_device_is_compatible(pdev->dev.of_node, "nuvoton,npcm750-mcu-flash"))
+		mcu->gcr_regmap =
+			syscon_regmap_lookup_by_compatible("nuvoton,npcm750-gcr");
+	if (of_device_is_compatible(pdev->dev.of_node, "nuvoton,npcm845-mcu-flash"))
+		mcu->gcr_regmap =
+			syscon_regmap_lookup_by_compatible("nuvoton,npcm845-gcr");
 	if (IS_ERR(mcu->gcr_regmap)) {
-		dev_err(&pdev->dev, "Can't find npcm750-gcr\n");
+		dev_err(&pdev->dev, "Failed to find gcr\n");
 		ret = PTR_ERR(mcu->gcr_regmap);
 		goto err;
 	}
@@ -504,11 +504,7 @@ static int npcm7xx_mcu_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "No mcu pin: %d", i);
 			return PTR_ERR(gpiod);
 		}
-		chip = gpiod_to_chip(gpiod);
-		mcu->pins[i].gpiod = gpiod;
-
-		mcu->pins[i].bit_offset = desc_to_gpio(gpiod)
-			- chip->base;
+		mcu->pins[i] = gpiod;
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node, "dev-num", &value);
@@ -517,6 +513,13 @@ static int npcm7xx_mcu_probe(struct platform_device *pdev)
 		value = 0;
 	}
 	mcu->dev_num = value;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "mfsel-offset", &value);
+	if (ret < 0) {
+		dev_info(&pdev->dev, "use MFSEL3\n");
+		value = MFSEL3_OFFSET;
+	}
+	mcu->mfsel_offset = value;
 
 	ret = of_property_read_u32(pdev->dev.of_node, "smb-offset", &value);
 	if (ret < 0) {
@@ -549,10 +552,8 @@ static int npcm7xx_mcu_remove(struct platform_device *pdev)
 
 	misc_deregister(&mcu->miscdev);
 	kfree(mcu->miscdev.name);
-	for (i = 0; i < PIN_TOTAL; i++) {
-		gpiod_direction_input(mcu->pins[i].gpiod);
-		gpiod_put(mcu->pins[i].gpiod);
-	}
+	for (i = 0; i < PIN_TOTAL; i++)
+		gpiod_put(mcu->pins[i]);
 	kfree(mcu);
 
 	return 0;
@@ -560,6 +561,7 @@ static int npcm7xx_mcu_remove(struct platform_device *pdev)
 
 static const struct of_device_id npcm7xx_mcu_match[] = {
 	{ .compatible = "nuvoton,npcm750-mcu-flash", },
+	{ .compatible = "nuvoton,npcm845-mcu-flash", },
 	{},
 };
 
