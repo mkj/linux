@@ -323,6 +323,8 @@ static int npcm_jtm_send(struct npcm_jtm *priv)
 	priv->tx_len -= cnt;
 	if (priv->tx_buf)
 		priv->tx_buf += cnt / 8;
+	if (priv->tms_buf)
+		priv->tms_buf += cnt / 8;
 
 	/* Start */
 	val = readl(priv->base + JTM_CMD);
