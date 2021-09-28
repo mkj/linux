@@ -496,7 +496,7 @@ config NPCM7XX_JTAG_MASTER
 
 config NPCM7XX_MCU_FLASH
 	tristate "NPCM7xx MCU Flash driver"
-	depends on (ARCH_NPCM7XX || COMPILE_TEST)
+	depends on (ARCH_NPCM || COMPILE_TEST)
 	help
 	  Control GPIO to transmit SPI signals to support MCU firmware flash function.
 
