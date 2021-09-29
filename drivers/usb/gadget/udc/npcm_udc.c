@@ -41,7 +41,8 @@
 static struct regmap *gcr_regmap;
 
 #define  INTCR3_OFFSET 0x9C
-#define  NPCM_INTCR3_USBPHYSW	GENMASK(13, 12)
+#define  NPCM_INTCR3_USBPHYSW		GENMASK(13, 12)
+#define  NPCM845_INTCR3_USBPHYSW	GENMASK(15, 14)
 
 #include "npcm_udc.h"
 
@@ -2765,15 +2766,32 @@ static int npcm_udc_probe(struct platform_device *pdev)
 	}
 
 	if (udc_controller->id == 9) {
-		if (gcr_regmap == NULL) {
+		if (of_device_is_compatible(np, "nuvoton,npcm750-udc")) {
 			gcr_regmap = syscon_regmap_lookup_by_compatible("nuvoton,npcm750-gcr");
 			if (IS_ERR(gcr_regmap)) {
 				pr_err("%s: failed to find nuvoton,npcm750-gcr\n", __func__);
 				return IS_ERR(gcr_regmap);
-		    }
+			}
+		} else {
+			gcr_regmap = syscon_regmap_lookup_by_compatible("nuvoton,npcm845-gcr");
+			if (IS_ERR(gcr_regmap)) {
+				pr_err("%s: failed to find nuvoton,npcm845-gcr\n", __func__);
+				return IS_ERR(gcr_regmap);
+			}
 		}
+		regmap_update_bits(gcr_regmap, INTCR3_OFFSET, NPCM_INTCR3_USBPHYSW, NPCM_INTCR3_USBPHYSW);
+	}
+
+
+	if (udc_controller->id == 8) {
+		gcr_regmap = syscon_regmap_lookup_by_compatible("nuvoton,npcm845-gcr");
+		if (IS_ERR(gcr_regmap)) {
+			pr_err("%s: failed to find nuvoton,npcm845-gcr\n", __func__);
+			return IS_ERR(gcr_regmap);
+		}
+
 		regmap_update_bits(gcr_regmap, INTCR3_OFFSET, 
-				   NPCM_INTCR3_USBPHYSW, NPCM_INTCR3_USBPHYSW);
+				   NPCM845_INTCR3_USBPHYSW, NPCM845_INTCR3_USBPHYSW);
 	}
 
 	/* Initialize the udc structure including QH member and other member */
