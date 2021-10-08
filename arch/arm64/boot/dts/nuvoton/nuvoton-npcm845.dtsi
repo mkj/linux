@@ -20,7 +20,7 @@
 			reg = <0x0 0x0>;
 			next-level-cache = <&l2>;
 			enable-method = "spin-table";
-			cpu-release-addr = <0 0xF080013C>;
+			cpu-release-addr = <0x0 0xF0800E00>;
 		};
 
 		cpu1: cpu@1 {
@@ -30,7 +30,7 @@
 			reg = <0x0 0x1>;
 			next-level-cache = <&l2>;
 			enable-method = "spin-table";
-			cpu-release-addr = <0 0xF080013C>;
+			cpu-release-addr = <0x0 0xF0800E00>;
 		};
 
 		cpu2: cpu@2 {
@@ -40,7 +40,7 @@
 			reg = <0x0 0x2>;
 			next-level-cache = <&l2>;
 			enable-method = "spin-table";
-			cpu-release-addr = <0 0xF080013C>;
+			cpu-release-addr = <0x0 0xF0800E00>;
 		};
 
 		cpu3: cpu@3 {
@@ -50,7 +50,7 @@
 			reg = <0x0 0x3>;
 			next-level-cache = <&l2>;
 			enable-method = "spin-table";
-			cpu-release-addr = <0 0xF080013C>;
+			cpu-release-addr = <0x0 0xF0800E00>;
 		};
 
 		l2: l2-cache {
