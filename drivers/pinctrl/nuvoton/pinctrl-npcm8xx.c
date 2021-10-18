@@ -91,10 +91,21 @@
 #define NPCM8XX_GPIO_BANK_NUM	8
 #define NPCM8XX_GCR_NONE	0
 
+#define NPCM8XX_DEBOUNCE_MAX		4
+#define NPCM8XX_DEBOUNCE_NANOSEC	40
+#define NPCM8XX_DEBOUNCE_VAL_MASK	GENMASK(23, 4)
+#define NPCM8XX_DEBOUNCE_MAX_VAL	0xFFFFF7
+
 /* Structure for register banks */
+struct debounce_time {
+	bool	 		set_val[NPCM8XX_DEBOUNCE_MAX];
+	u32			nanosec_val[NPCM8XX_DEBOUNCE_MAX];
+};
+
 struct npcm8xx_gpio {
 	void __iomem		*base;
 	struct gpio_chip	gc;
+	struct debounce_time	debounce;
 	int			irqbase;
 	int			irq;
 	void			*priv;
@@ -2254,6 +2265,85 @@ static struct pinmux_ops npcm8xx_pinmux_ops = {
 	.gpio_set_direction = npcm_gpio_set_direction,
 };
 
+static int debounce_timing_setting(struct npcm8xx_gpio *bank, u32 gpio,
+				   u32 nanosecs)
+{
+	int gpio_debounce = (gpio % 16) * 2;
+	u32 dbncp_val, dbncp_val_mod;
+	int DBNCS_offset = gpio / 16;
+	int debounce_select; 
+	int i;
+
+	for (i = 0 ; i < NPCM8XX_DEBOUNCE_MAX ; i++) {
+		if (bank->debounce.set_val[i]) {
+			if (bank->debounce.nanosec_val[i] == nanosecs) {
+				debounce_select = i << gpio_debounce;
+				npcm_gpio_set(&bank->gc, bank->base + NPCM8XX_GP_N_DBNCS0 + (DBNCS_offset * 4), debounce_select);
+				break;
+			}
+		} else {
+			bank->debounce.set_val[i] = true;
+			bank->debounce.nanosec_val[i] = nanosecs;
+			debounce_select = i << gpio_debounce;
+			npcm_gpio_set(&bank->gc, bank->base + NPCM8XX_GP_N_DBNCS0 + (DBNCS_offset * 4), debounce_select);
+			if (nanosecs <= 1040) 
+				iowrite32(0, bank->base + NPCM8XX_GP_N_DBNCP0 + (i * 4));
+			else if ((nanosecs > 1040) && (nanosecs <= 1640))
+				iowrite32(0x10, bank->base + NPCM8XX_GP_N_DBNCP0 + (i * 4));
+			else if ((nanosecs > 1640) && (nanosecs <= 2280))
+				iowrite32(0x20, bank->base + NPCM8XX_GP_N_DBNCP0 + (i * 4));
+			else if ((nanosecs > 2280) && (nanosecs <= 2700))
+				iowrite32(0x30, bank->base + NPCM8XX_GP_N_DBNCP0 + (i * 4));
+			else if ((nanosecs > 2700) && (nanosecs <= 2856))
+				iowrite32(0x40, bank->base + NPCM8XX_GP_N_DBNCP0 + (i * 4));
+			else if ((nanosecs > 2856) && (nanosecs <= 3496))
+				iowrite32(0x50, bank->base + NPCM8XX_GP_N_DBNCP0 + (i * 4));
+			else if ((nanosecs > 3496) && (nanosecs <= 4136))
+				iowrite32(0x60, bank->base + NPCM8XX_GP_N_DBNCP0 + (i * 4));
+			else if ((nanosecs > 4136) && (nanosecs <= 5025))
+				iowrite32(0x70, bank->base + NPCM8XX_GP_N_DBNCP0 + (i * 4));
+			else {
+				dbncp_val = DIV_ROUND_CLOSEST(nanosecs, NPCM8XX_DEBOUNCE_NANOSEC);
+				if (dbncp_val > NPCM8XX_DEBOUNCE_MAX_VAL)
+					return ENOTSUPP;
+				dbncp_val_mod = dbncp_val & 0xF;
+				if (dbncp_val_mod > 0x7)
+					dbncp_val += 0x10;
+				iowrite32(dbncp_val & NPCM8XX_DEBOUNCE_VAL_MASK, bank->base + NPCM8XX_GP_N_DBNCP0 + (i * 4));
+			}
+			break;
+		}
+	}
+
+	if (i == 4)
+		return ENOTSUPP;
+
+	return 0;
+}
+
+static int npcm_set_debounce(struct npcm8xx_pinctrl *npcm, unsigned int pin,
+			     u32 nanosecs)
+{
+	struct npcm8xx_gpio *bank =
+		&npcm->gpio_bank[pin / NPCM8XX_GPIO_PER_BANK];
+	int gpio = BIT(pin % bank->gc.ngpio);
+	int ret = 0;
+
+	if (nanosecs) {
+		ret = debounce_timing_setting(bank, pin % bank->gc.ngpio, nanosecs);
+		if (!ret)  
+			npcm_gpio_set(&bank->gc, bank->base + NPCM8XX_GP_N_DBNC, gpio);
+		else 
+			dev_err(npcm->dev, "debounce_timing_setting failed, ret=%d\n",ret);
+
+		return ret;
+	}
+
+	npcm_gpio_clr(&bank->gc, bank->base + NPCM8XX_GP_N_DBNC, gpio);
+
+	return 0;
+}
+
 /* pinconf_ops */
 static int npcm8xx_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			      unsigned long *config)
@@ -2322,7 +2412,7 @@ static int npcm8xx_config_set_one(struct npcm8xx_pinctrl *npcm,
 				  unsigned int pin, unsigned long config)
 {
 	enum pin_config_param param = pinconf_to_config_param(config);
-	u16 arg = pinconf_to_config_argument(config);
+	u32 arg = pinconf_to_config_argument(config);
 	struct npcm8xx_gpio *bank =
 		&npcm->gpio_bank[pin / NPCM8XX_GPIO_PER_BANK];
 	int gpio = BIT(pin % bank->gc.ngpio);
@@ -2356,8 +2446,7 @@ static int npcm8xx_config_set_one(struct npcm8xx_pinctrl *npcm,
 		npcm_gpio_set(&bank->gc, bank->base + NPCM8XX_GP_N_OTYP, gpio);
 		break;
 	case PIN_CONFIG_INPUT_DEBOUNCE:
-		npcm_gpio_set(&bank->gc, bank->base + NPCM8XX_GP_N_DBNC, gpio);
-		break;
+		return npcm_set_debounce(npcm, pin, arg * 1000);
 	case PIN_CONFIG_SLEW_RATE:
 		return npcm8xx_set_slew_rate(bank, npcm->gcr_regmap, pin, arg);
 	case PIN_CONFIG_DRIVE_STRENGTH:
@@ -2408,7 +2497,7 @@ static int npcm8xx_gpio_of(struct npcm8xx_pinctrl *pctrl)
 {
 	int ret = -ENXIO;
 	struct resource res;
-	int id = 0, irq;
+	int id = 0, irq, i;
 	struct device_node *np;
 	struct of_phandle_args pinspec;
 
@@ -2484,6 +2573,8 @@ static int npcm8xx_gpio_of(struct npcm8xx_pinctrl *pctrl)
 			pctrl->gpio_bank[id].gc.request = npcmgpio_gpio_request;
 			pctrl->gpio_bank[id].gc.free = npcmgpio_gpio_free;
 			pctrl->gpio_bank[id].gc.of_node = np;
+			for (i = 0 ; i < NPCM8XX_DEBOUNCE_MAX ; i++ )
+				pctrl->gpio_bank[id].debounce.set_val[i] = false;
 			id++;
 		}
 
