@@ -3,6 +3,19 @@
 
 / {
 	pinctrl: pinctrl@f0800000 {
+		pin70_o: pin70-o {
+			 pins = "GPIO70/FANIN6";
+			 bias-disable;
+			 output-high;
+		};
+		pin108_slew: pin108-slew {
+			pins = "GPIO108/SG1_MDC";
+			slew-rate = <1>;
+		};
+		pin109_slew: pin109-slew {
+			pins = "GPIO109/SG1_MDIO";
+			slew-rate = <1>;
+		};
 		pin33_slew: pin33-slew {
 			pins = "I3C4_SCL";
 			slew-rate = <1>;
