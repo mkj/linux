@@ -43,39 +43,42 @@
 
 #define  IOXCFG2 0x2B
 #define  IXOEVCFG_MASK 0x3
+#define  IXOEVCFG_BOTH 0x3
+#define  IXOEVCFG_FALLING 0x2
+#define  IXOEVCFG_RISING 0x1
 
 #define GPIO_BANK(x)    ((x) / 8)
 #define GPIO_BIT(x)     ((x) % 8)
 
-struct nuvoton_sgpio {
+struct npcm_sgpio {
 	struct gpio_chip chip;
 	struct clk *pclk;
-	spinlock_t lock;
+	struct irq_domain	*domain;
+	spinlock_t lock; /*protect event config*/
 	void __iomem *base;
+	int irq;
 	u8 nin_sgpio;
 	u8 nout_sgpio;
 	u8 in_port;
 	u8 out_port;
-	int irq;
-	struct irq_domain	*domain;
-	u8 int_type[64];
+	u8 int_type[MAX_NR_HW_SGPIO];
 };
 
-struct nuvoton_sgpio_bank {
-	u8    rdata_reg;
-	u8    wdata_reg;
-	u8    event_config;
-	u8    event_status;
+struct npcm_sgpio_bank {
+	u8	rdata_reg;
+	u8	wdata_reg;
+	u8	event_config;
+	u8	event_status;
 };
 
-enum nuvoton_sgpio_reg {
+enum npcm_sgpio_reg {
 	rdata_reg,
 	wdata_reg,
 	event_config,
 	event_status,
 };
 
-static const struct nuvoton_sgpio_bank nuvoton_sgpio_banks[] = {
+static const struct npcm_sgpio_bank npcm_sgpio_banks[] = {
 	{
 		.rdata_reg = 0x08,
 		.wdata_reg = 0x00,
@@ -127,9 +130,9 @@ static const struct nuvoton_sgpio_bank nuvoton_sgpio_banks[] = {
 
 };
 
-static void __iomem *bank_reg(struct nuvoton_sgpio *gpio,
-			      const struct nuvoton_sgpio_bank *bank,
-				const enum nuvoton_sgpio_reg reg)
+static void __iomem *bank_reg(struct npcm_sgpio *gpio,
+			      const struct npcm_sgpio_bank *bank,
+				const enum npcm_sgpio_reg reg)
 {
 	switch (reg) {
 	case rdata_reg:
@@ -146,19 +149,19 @@ static void __iomem *bank_reg(struct nuvoton_sgpio *gpio,
 	}
 }
 
-static const struct nuvoton_sgpio_bank *to_bank(unsigned int offset)
+static const struct npcm_sgpio_bank *to_bank(unsigned int offset)
 {
 	unsigned int bank = GPIO_BANK(offset);
 
-	return &nuvoton_sgpio_banks[bank];
+	return &npcm_sgpio_banks[bank];
 }
 
-static void irqd_to_nuvoton_sgpio_data(struct irq_data *d,
-				       struct nuvoton_sgpio **gpio,
-					const struct nuvoton_sgpio_bank **bank,
-					u8 *bit, int *offset)
+static void irqd_to_npcm_sgpio_data(struct irq_data *d,
+				    struct npcm_sgpio **gpio,
+				    const struct npcm_sgpio_bank **bank,
+				    u8 *bit, int *offset)
 {
-	struct nuvoton_sgpio *internal;
+	struct npcm_sgpio *internal;
 
 	*offset = irqd_to_hwirq(d);
 	internal = irq_data_get_irq_chip_data(d);
@@ -170,33 +173,31 @@ static void irqd_to_nuvoton_sgpio_data(struct irq_data *d,
 	*bit = GPIO_BIT(*offset);
 }
 
-static int nuvoton_sgpio_init_valid_mask(struct gpio_chip *gc,
-					 unsigned long *valid_mask, unsigned int ngpios)
+static int npcm_sgpio_init_valid_mask(struct gpio_chip *gc,
+				      unsigned long *valid_mask, unsigned int ngpios)
 {
-	struct nuvoton_sgpio *gpio = gpiochip_get_data(gc);
+	struct npcm_sgpio *gpio = gpiochip_get_data(gc);
 	u8 in_port, out_port, set_port;
 
+	in_port = gpio->nin_sgpio / 8;
 	if (gpio->nin_sgpio % 8 > 0)
-		in_port = gpio->nin_sgpio / 8 + 1;
-	else
-		in_port = gpio->nin_sgpio / 8;
+		in_port += 1;
 
+	out_port = gpio->nout_sgpio / 8;
 	if (gpio->nout_sgpio % 8 > 0)
-		out_port = gpio->nout_sgpio / 8 + 1;
-	else
-		out_port = gpio->nout_sgpio / 8;
+		out_port += 1;
 
 	gpio->in_port = in_port;
 	gpio->out_port = out_port;
-	set_port = ((out_port & 0xF) << 4) | (in_port & 0xF);
+	set_port = ((out_port & 0xf) << 4) | (in_port & 0xf);
 	iowrite8(set_port, gpio->base + IOXCFG2);
 
 	return 0;
 }
 
-static int nuvoton_sgpio_dir_in(struct gpio_chip *gc, unsigned int offset)
+static int npcm_sgpio_dir_in(struct gpio_chip *gc, unsigned int offset)
 {
-	struct nuvoton_sgpio *gpio = gpiochip_get_data(gc);
+	struct npcm_sgpio *gpio = gpiochip_get_data(gc);
 
 	if (offset < gpio->nout_sgpio)
 		return -EINVAL;
@@ -204,32 +205,30 @@ static int nuvoton_sgpio_dir_in(struct gpio_chip *gc, unsigned int offset)
 	return 0;
 }
 
-static int nuvoton_sgpio_dir_out(struct gpio_chip *gc, unsigned int offset, int val)
+static int npcm_sgpio_dir_out(struct gpio_chip *gc, unsigned int offset, int val)
 {
-	struct nuvoton_sgpio *gpio = gpiochip_get_data(gc);
+	struct npcm_sgpio *gpio = gpiochip_get_data(gc);
 
 	if (offset < gpio->nout_sgpio) {
 		gc->set(gc, offset, val);
 		return 0;
-	} else {
-		return -EINVAL;
 	}
+	return -EINVAL;
 }
 
-static int nuvoton_sgpio_get_direction(struct gpio_chip *gc, unsigned int offset)
+static int npcm_sgpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 {
-	struct nuvoton_sgpio *gpio = gpiochip_get_data(gc);
+	struct npcm_sgpio *gpio = gpiochip_get_data(gc);
 
 	if (offset < gpio->nout_sgpio)
 		return 0;
-	else
-		return 1;
+	return 1;
 }
 
-static void nuvoton_sgpio_set(struct gpio_chip *gc, unsigned int offset, int val)
+static void npcm_sgpio_set(struct gpio_chip *gc, unsigned int offset, int val)
 {
-	struct nuvoton_sgpio *gpio = gpiochip_get_data(gc);
-	const struct  nuvoton_sgpio_bank *bank = to_bank(offset);
+	struct npcm_sgpio *gpio = gpiochip_get_data(gc);
+	const struct  npcm_sgpio_bank *bank = to_bank(offset);
 	void __iomem *addr;
 	u8 reg = 0;
 
@@ -245,14 +244,14 @@ static void nuvoton_sgpio_set(struct gpio_chip *gc, unsigned int offset, int val
 	}
 }
 
-static int nuvoton_sgpio_get(struct gpio_chip *gc, unsigned int offset)
+static int npcm_sgpio_get(struct gpio_chip *gc, unsigned int offset)
 {
-	struct nuvoton_sgpio *gpio = gpiochip_get_data(gc);
-	const struct  nuvoton_sgpio_bank *bank;
+	struct npcm_sgpio *gpio = gpiochip_get_data(gc);
+	const struct  npcm_sgpio_bank *bank;
 	void __iomem *addr;
 	u8 dir, reg;
 
-	dir = nuvoton_sgpio_get_direction(gc, offset);
+	dir = npcm_sgpio_get_direction(gc, offset);
 	if (dir == 0) {
 		bank = to_bank(offset);
 
@@ -271,7 +270,7 @@ static int nuvoton_sgpio_get(struct gpio_chip *gc, unsigned int offset)
 	return reg;
 }
 
-static void nuvoton_sgpio_setup_enable(struct nuvoton_sgpio *gpio, u8 enable)
+static void npcm_sgpio_setup_enable(struct npcm_sgpio *gpio, bool enable)
 {
 	u8 reg = 0;
 
@@ -279,7 +278,7 @@ static void nuvoton_sgpio_setup_enable(struct nuvoton_sgpio *gpio, u8 enable)
 	reg = reg & ~IOXCTS_RD_MODE;
 	reg = reg | IOXCTS_RD_MODE_PERIODIC;
 
-	if (enable == 1) {
+	if (enable) {
 		reg |= IOXCTS_IOXIF_EN;
 		iowrite8(reg, gpio->base + IOXCTS);
 	} else {
@@ -288,7 +287,7 @@ static void nuvoton_sgpio_setup_enable(struct nuvoton_sgpio *gpio, u8 enable)
 	}
 }
 
-static int nuvoton_sgpio_setup_clk(struct nuvoton_sgpio *gpio, u32 sgpio_freq)
+static int npcm_sgpio_setup_clk(struct npcm_sgpio *gpio, u32 sgpio_freq)
 {
 	unsigned long apb_freq;
 	u32 sgpio_clk_div;
@@ -324,10 +323,10 @@ static int nuvoton_sgpio_setup_clk(struct nuvoton_sgpio *gpio, u32 sgpio_freq)
 	return 0;
 }
 
-static void nuvoton_sgpio_irq_init_valid_mask(struct gpio_chip *gc,
-					      unsigned long *valid_mask, unsigned int ngpios)
+static void npcm_sgpio_irq_init_valid_mask(struct gpio_chip *gc,
+					   unsigned long *valid_mask, unsigned int ngpios)
 {
-	struct nuvoton_sgpio *gpio = gpiochip_get_data(gc);
+	struct npcm_sgpio *gpio = gpiochip_get_data(gc);
 	int n = gpio->nin_sgpio;
 
 	/* input GPIOs in the high range */
@@ -335,22 +334,22 @@ static void nuvoton_sgpio_irq_init_valid_mask(struct gpio_chip *gc,
 	bitmap_clear(valid_mask, 0, gpio->nout_sgpio);
 }
 
-static void nuvoton_sgpio_irq_set_mask(struct irq_data *d, bool set)
+static void npcm_sgpio_irq_set_mask(struct irq_data *d, bool set)
 {
-	const struct nuvoton_sgpio_bank *bank;
-	struct nuvoton_sgpio *gpio;
+	const struct npcm_sgpio_bank *bank;
+	struct npcm_sgpio *gpio;
 	unsigned long flags;
-	u16 reg;
-	u8 bit, type;
 	void __iomem *addr;
 	int offset;
+	u16 reg, type;
+	u8 bit;
 
-	irqd_to_nuvoton_sgpio_data(d, &gpio, &bank, &bit, &offset);
+	irqd_to_npcm_sgpio_data(d, &gpio, &bank, &bit, &offset);
 	addr = bank_reg(gpio, bank, event_config);
 
 	spin_lock_irqsave(&gpio->lock, flags);
 
-	nuvoton_sgpio_setup_enable(gpio, 0);
+	npcm_sgpio_setup_enable(gpio, false);
 
 	reg = ioread16(addr);
 	if (set) {
@@ -362,7 +361,7 @@ static void nuvoton_sgpio_irq_set_mask(struct irq_data *d, bool set)
 
 	iowrite16(reg, addr);
 
-	nuvoton_sgpio_setup_enable(gpio, 1);
+	npcm_sgpio_setup_enable(gpio, true);
 
 	addr = bank_reg(gpio, bank, event_status);
 	reg = ioread8(addr);
@@ -372,65 +371,64 @@ static void nuvoton_sgpio_irq_set_mask(struct irq_data *d, bool set)
 	spin_unlock_irqrestore(&gpio->lock, flags);
 }
 
-static void nuvoton_sgpio_irq_ack(struct irq_data *d)
+static void npcm_sgpio_irq_ack(struct irq_data *d)
 {
-	const struct nuvoton_sgpio_bank *bank;
-	struct nuvoton_sgpio *gpio;
+	const struct npcm_sgpio_bank *bank;
+	struct npcm_sgpio *gpio;
 	unsigned long flags;
 	void __iomem *status_addr;
 	int offset;
 	u8 bit;
 
-	irqd_to_nuvoton_sgpio_data(d, &gpio, &bank, &bit, &offset);
+	irqd_to_npcm_sgpio_data(d, &gpio, &bank, &bit, &offset);
 	status_addr = bank_reg(gpio, bank, event_status);
 	spin_lock_irqsave(&gpio->lock, flags);
 	iowrite8(BIT(bit), status_addr);
 	spin_unlock_irqrestore(&gpio->lock, flags);
 }
 
-static void nuvoton_sgpio_irq_mask(struct irq_data *d)
+static void npcm_sgpio_irq_mask(struct irq_data *d)
 {
-	nuvoton_sgpio_irq_set_mask(d, true);
+	npcm_sgpio_irq_set_mask(d, true);
 }
 
-static void nuvoton_sgpio_irq_unmask(struct irq_data *d)
+static void npcm_sgpio_irq_unmask(struct irq_data *d)
 {
-	nuvoton_sgpio_irq_set_mask(d, false);
+	npcm_sgpio_irq_set_mask(d, false);
 }
 
-static int nuvoton_sgpio_set_type(struct irq_data *d, unsigned int type)
+static int npcm_sgpio_set_type(struct irq_data *d, unsigned int type)
 {
-	u32 val;
-	u8 bit;
-	u16 reg;
-	const struct nuvoton_sgpio_bank *bank;
+	const struct npcm_sgpio_bank *bank;
 	irq_flow_handler_t handler;
-	struct nuvoton_sgpio *gpio;
+	struct npcm_sgpio *gpio;
 	unsigned long flags;
 	void __iomem *addr;
 	int offset;
+	u16 reg, val;
+	u8 bit;
 
-	irqd_to_nuvoton_sgpio_data(d, &gpio, &bank, &bit, &offset);
+	irqd_to_npcm_sgpio_data(d, &gpio, &bank, &bit, &offset);
 
 	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_EDGE_BOTH:
-		val = 3;
+		val = IXOEVCFG_BOTH;
 		handler = handle_edge_irq;
 		break;
 	case IRQ_TYPE_EDGE_RISING:
-		val = 1;
+		val = IXOEVCFG_RISING;
 		handler = handle_edge_irq;
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
-		val = 2;
+		val = IXOEVCFG_FALLING;
 		handler = handle_edge_irq;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
-		val = 1;
+		val = IXOEVCFG_RISING;
 		handler = handle_level_irq;
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
-		val = 2;
+		val = IXOEVCFG_FALLING;
 		handler = handle_level_irq;
 		break;
 	default:
@@ -440,14 +438,14 @@ static int nuvoton_sgpio_set_type(struct irq_data *d, unsigned int type)
 	gpio->int_type[offset - gpio->nout_sgpio] = val;
 
 	spin_lock_irqsave(&gpio->lock, flags);
-	nuvoton_sgpio_setup_enable(gpio, 0);
+	npcm_sgpio_setup_enable(gpio, false);
 	addr = bank_reg(gpio, bank, event_config);
 	reg = ioread16(addr);
 
 	reg |= (val << (bit * 2));
 
 	iowrite16(reg, addr);
-	nuvoton_sgpio_setup_enable(gpio, 1);
+	npcm_sgpio_setup_enable(gpio, true);
 	spin_unlock_irqrestore(&gpio->lock, flags);
 
 	irq_set_handler_locked(d, handler);
@@ -455,18 +453,18 @@ static int nuvoton_sgpio_set_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static void nuvoton_sgpio_irq_handler(struct irq_desc *desc)
+static void npcm_sgpio_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct irq_chip *ic = irq_desc_get_chip(desc);
-	struct nuvoton_sgpio *gpio = gpiochip_get_data(gc);
+	struct npcm_sgpio *gpio = gpiochip_get_data(gc);
 	unsigned int i, j, girq;
 	unsigned long reg;
 
 	chained_irq_enter(ic, desc);
 
-	for (i = 0; i < ARRAY_SIZE(nuvoton_sgpio_banks); i++) {
-		const struct nuvoton_sgpio_bank *bank = &nuvoton_sgpio_banks[i];
+	for (i = 0; i < ARRAY_SIZE(npcm_sgpio_banks); i++) {
+		const struct npcm_sgpio_bank *bank = &npcm_sgpio_banks[i];
 
 		reg = ioread8(bank_reg(gpio, bank, event_status));
 		for_each_set_bit(j, &reg, 8) {
@@ -478,20 +476,19 @@ static void nuvoton_sgpio_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(ic, desc);
 }
 
-static struct irq_chip nuvoton_sgpio_irqchip = {
-	.name       = "nuvoton-sgpio",
-	.irq_ack    = nuvoton_sgpio_irq_ack,
-	.irq_mask   = nuvoton_sgpio_irq_mask,
-	.irq_unmask = nuvoton_sgpio_irq_unmask,
-	.irq_set_type   = nuvoton_sgpio_set_type,
+static struct irq_chip npcm_sgpio_irqchip = {
+	.name       = "npcm-sgpio",
+	.irq_ack    = npcm_sgpio_irq_ack,
+	.irq_mask   = npcm_sgpio_irq_mask,
+	.irq_unmask = npcm_sgpio_irq_unmask,
+	.irq_set_type   = npcm_sgpio_set_type,
 };
 
-static int nuvoton_sgpio_setup_irqs(struct nuvoton_sgpio *gpio,
-				    struct platform_device *pdev)
+static int npcm_sgpio_setup_irqs(struct npcm_sgpio *gpio,
+				 struct platform_device *pdev)
 {
 	int rc;
 	struct gpio_irq_chip *irq;
-	struct device *dev = &pdev->dev;
 
 	rc = platform_get_irq(pdev, 0);
 	if (rc < 0)
@@ -500,11 +497,11 @@ static int nuvoton_sgpio_setup_irqs(struct nuvoton_sgpio *gpio,
 	gpio->irq = rc;
 
 	irq = &gpio->chip.irq;
-	irq->chip = &nuvoton_sgpio_irqchip;
-	irq->init_valid_mask = nuvoton_sgpio_irq_init_valid_mask;
+	irq->chip = &npcm_sgpio_irqchip;
+	irq->init_valid_mask = npcm_sgpio_irq_init_valid_mask;
 	irq->handler = handle_bad_irq;
 	irq->default_type = IRQ_TYPE_NONE;
-	irq->parent_handler = nuvoton_sgpio_irq_handler;
+	irq->parent_handler = npcm_sgpio_irq_handler;
 	irq->parent_handler_data = gpio;
 	irq->parents = &gpio->irq;
 	irq->num_parents = 1;
@@ -512,19 +509,19 @@ static int nuvoton_sgpio_setup_irqs(struct nuvoton_sgpio *gpio,
 	return 0;
 }
 
-static const struct of_device_id nuvoton_sgpio_of_table[] = {
+static const struct of_device_id npcm_sgpio_of_table[] = {
 	{ .compatible = "nuvoton,npcm7xx-sgpio" },
 	{ .compatible = "nuvoton,npcm845-sgpio" },
 	{}
 };
 
-MODULE_DEVICE_TABLE(of, nuvoton_sgpio_of_table);
+MODULE_DEVICE_TABLE(of, npcm_sgpio_of_table);
 
-static int __init nuvoton_sgpio_probe(struct platform_device *pdev)
+static int __init npcm_sgpio_probe(struct platform_device *pdev)
 {
-	struct nuvoton_sgpio *gpio;
-	u32 nin_gpios, nout_gpios, sgpio_freq;
+	struct npcm_sgpio *gpio;
 	int rc;
+	u32 nin_gpios, nout_gpios, sgpio_freq;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
@@ -547,8 +544,11 @@ static int __init nuvoton_sgpio_probe(struct platform_device *pdev)
 
 	gpio->nin_sgpio = nin_gpios;
 	gpio->nout_sgpio = nout_gpios;
-	if (gpio->nin_sgpio > MAX_NR_HW_SGPIO || gpio->nout_sgpio > MAX_NR_HW_SGPIO)
+	if (gpio->nin_sgpio > MAX_NR_HW_SGPIO || gpio->nout_sgpio > MAX_NR_HW_SGPIO) {
+		dev_err(&pdev->dev, "Number of GPIOs exceeds the maximum of %d: input: %d output: %d\n",
+			MAX_NR_HW_SGPIO, nin_gpios, nout_gpios);
 		return -EINVAL;
+	}
 
 	rc = of_property_read_u32(pdev->dev.of_node, "bus-frequency", &sgpio_freq);
 	if (rc < 0) {
@@ -562,29 +562,27 @@ static int __init nuvoton_sgpio_probe(struct platform_device *pdev)
 		return PTR_ERR(gpio->pclk);
 	}
 
-	if (sgpio_freq == 0)
+	rc = npcm_sgpio_setup_clk(gpio, sgpio_freq);
+	if (rc < 0) {
+		dev_err(&pdev->dev, "Failed to setup clock\n");
 		return -EINVAL;
-
-	rc = nuvoton_sgpio_setup_clk(gpio, sgpio_freq);
-	if (rc < 0)
-		return -EINVAL;
-
+	}
 	spin_lock_init(&gpio->lock);
 	gpio->chip.parent = &pdev->dev;
-	gpio->chip.ngpio = nin_gpios + nout_gpios;
-	gpio->chip.init_valid_mask = nuvoton_sgpio_init_valid_mask;
-	gpio->chip.direction_input = nuvoton_sgpio_dir_in;
-	gpio->chip.direction_output = nuvoton_sgpio_dir_out;
-	gpio->chip.get_direction = nuvoton_sgpio_get_direction;
+	gpio->chip.ngpio = gpio->nin_sgpio + gpio->nout_sgpio;
+	gpio->chip.init_valid_mask = npcm_sgpio_init_valid_mask;
+	gpio->chip.direction_input = npcm_sgpio_dir_in;
+	gpio->chip.direction_output = npcm_sgpio_dir_out;
+	gpio->chip.get_direction = npcm_sgpio_get_direction;
 	gpio->chip.request = NULL;
 	gpio->chip.free = NULL;
-	gpio->chip.get = nuvoton_sgpio_get;
-	gpio->chip.set = nuvoton_sgpio_set;
+	gpio->chip.get = npcm_sgpio_get;
+	gpio->chip.set = npcm_sgpio_set;
 	gpio->chip.set_config = NULL;
 	gpio->chip.label = dev_name(&pdev->dev);
 	gpio->chip.base = -1;
 
-	rc = nuvoton_sgpio_setup_irqs(gpio, pdev);
+	rc = npcm_sgpio_setup_irqs(gpio, pdev);
 	if (rc < 0)
 		return rc;
 
@@ -592,18 +590,18 @@ static int __init nuvoton_sgpio_probe(struct platform_device *pdev)
 	if (rc < 0)
 		return rc;
 
-	nuvoton_sgpio_setup_enable(gpio, 1);
+	npcm_sgpio_setup_enable(gpio, true);
 	return 0;
 }
 
-static struct platform_driver nuvoton_sgpio_driver = {
+static struct platform_driver npcm_sgpio_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.of_match_table = nuvoton_sgpio_of_table,
+		.of_match_table = npcm_sgpio_of_table,
 	},
 };
 
-module_platform_driver_probe(nuvoton_sgpio_driver, nuvoton_sgpio_probe);
+module_platform_driver_probe(npcm_sgpio_driver, npcm_sgpio_probe);
 MODULE_AUTHOR("Jim Liu <jjliu0@nuvoton.com>");
 MODULE_AUTHOR("Joseph Liu <kwliu@nuvoton.com>");
 MODULE_DESCRIPTION("Nuvoton NPCM Serial GPIO Driver");

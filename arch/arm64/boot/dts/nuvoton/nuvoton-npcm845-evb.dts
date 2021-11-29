@@ -427,9 +427,6 @@
 
 			sgpio2: sgpio@102000 {
 				status = "okay";
-				bus-frequency = <16000000>;
-				nin_gpios = <64>;
-				nout_gpios = <64>;
 				gpio-line-names =
 					"POWER_OUT","RESET_OUT","","","","","","",
 					"g_led","","","","","","","",
