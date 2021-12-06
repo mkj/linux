@@ -53,7 +53,6 @@
 struct npcm_sgpio {
 	struct gpio_chip chip;
 	struct clk *pclk;
-	struct irq_domain	*domain;
 	spinlock_t lock; /*protect event config*/
 	void __iomem *base;
 	int irq;
@@ -355,7 +354,7 @@ static void npcm_sgpio_irq_set_mask(struct irq_data *d, bool set)
 	if (set) {
 		reg &= ~(IXOEVCFG_MASK << (bit * 2));
 	} else {
-		type = gpio->int_type[offset - gpio->nout_sgpio];
+		type = gpio->int_type[offset];
 		reg |= (type << (bit * 2));
 	}
 
@@ -435,7 +434,7 @@ static int npcm_sgpio_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	gpio->int_type[offset - gpio->nout_sgpio] = val;
+	gpio->int_type[offset] = val;
 
 	spin_lock_irqsave(&gpio->lock, flags);
 	npcm_sgpio_setup_enable(gpio, false);
