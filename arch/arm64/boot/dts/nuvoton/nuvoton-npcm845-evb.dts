@@ -535,6 +535,22 @@
 				i2c-scl-hz = <400000>;
 				i3c-scl-hz = <4000000>;
 			};
+
+			i3c2: i3c@fff12000 {
+				status = "okay";
+				i2c-scl-hz = <400000>;
+				i3c-scl-hz = <4000000>;
+				static-address;
+				hub@0x57 {
+					reg = <0x57 0x4CC 0x51180000>;
+				};
+				ts0@0x17 {
+					reg = <0x17 0x4CC 0x51110000>;
+				};
+				ts1@0x37 {
+					reg = <0x37 0x4CC 0x51110001>;
+				};
+			};
 		};
 	};
 
