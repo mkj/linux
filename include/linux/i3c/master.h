@@ -323,6 +323,7 @@ enum i3c_addr_slot_status {
  *	  the same master in parallel. This is the responsibility of the
  *	  master to guarantee that frames are actually sent sequentially and
  *	  not interlaced
+ * @setaasa: use SETAASA command for address assignment, instead of DAA
  *
  * The I3C bus is represented with its own object and not implicitly described
  * by the I3C master to cope with the multi-master functionality, where one bus
@@ -343,7 +344,7 @@ struct i3c_bus {
 		struct list_head i2c;
 	} devs;
 	struct rw_semaphore lock;
-	bool all_static;
+	bool setaasa;
 };
 
 /**

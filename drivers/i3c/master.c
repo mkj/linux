@@ -1533,7 +1533,7 @@ i3c_master_register_new_i3c_devs(struct i3c_master_controller *master)
 		return;
 
 	i3c_bus_for_each_i3cdev(&master->bus, desc) {
-		if (desc->dev || (!desc->info.dyn_addr && !master->bus.all_static)
+		if (desc->dev || (!desc->info.dyn_addr && !master->bus.setaasa)
 				|| desc == master->this)
 			continue;
 
@@ -1579,7 +1579,7 @@ int i3c_master_do_daa(struct i3c_master_controller *master)
 {
 	int ret;
 
-	if (master->bus.all_static)
+	if (master->bus.setaasa)
 		return 0;
 
 	i3c_bus_maintenance_lock(&master->bus);
@@ -1787,7 +1787,7 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 	if (ret && ret != I3C_ERROR_M2)
 		goto err_bus_cleanup;
 
-	if (master->bus.all_static) {
+	if (master->bus.setaasa) {
 		dev_dbg(&master->dev, "All slaves use their static address\n");
 		ret = i3c_master_setaasa_locked(master);
 		if (ret && ret != I3C_ERROR_M2)
@@ -1804,7 +1804,7 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 	 */
 	list_for_each_entry(i3cboardinfo, &master->boardinfo.i3c, node) {
 
-		if (master->bus.all_static) {
+		if (master->bus.setaasa) {
 			ret = i3c_bus_get_addr_slot_status(&master->bus,
 					i3cboardinfo->static_addr);
 			if (ret != I3C_ADDR_SLOT_FREE) {
@@ -2197,7 +2197,7 @@ static int of_populate_i3c_bus(struct i3c_master_controller *master)
 		master->bus.scl_rate.i3c = val;
 
 	if (of_property_read_bool(i3cbus_np, "static-address"))
-		master->bus.all_static = true;
+		master->bus.setaasa = true;
 
 	return 0;
 }
