@@ -256,11 +256,19 @@ static int spd5118_i3c_probe(struct i3c_device *i3cdev)
 	return 0;
 }
 
+static int spd5118_i3c_remove(struct i3c_device *i3cdev)
+{
+	sysfs_remove_bin_file(&i3cdev->dev.kobj, &eeprom_attr);
+
+	return 0;
+}
+
 static struct i3c_driver spd5118_driver = {
 	.driver = {
 		.name = "spd5118",
 	},
 	.probe = spd5118_i3c_probe,
+	.remove = spd5118_i3c_remove,
 	.id_table = spd5118_i3c_ids,
 };
 module_i3c_driver(spd5118_driver);
