@@ -186,6 +186,10 @@
 			status = "okay";
 		};
 
+		sha: sha@f085a000 {
+			status = "okay";
+		};
+
 		fiu0: spi@fb000000 {
 			status = "okay";
 			spi-nor@0 {
