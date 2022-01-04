@@ -14,6 +14,8 @@
 #include <linux/of_irq.h>
 #include <asm/irq.h>
 #include <asm/cputype.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 
 /* PCIe Root Complex Register */
 #define LINKSTAT			0x92
@@ -37,6 +39,14 @@
 #define RCPA0TAH	0x60C
 #define RCPA0TP		0x610
 #define RCPA0TM		0x618
+
+/* PCIe-to-AXI Window 0 Registers */
+#define RCPA1SAL	0x700
+#define RCPA1SAH	0x704
+#define RCPA1TAL	0x708
+#define RCPA1TAH	0x70C
+#define RCPA1TP		0x710
+#define RCPA1TM		0x718
 
 /* AXI-to-PCIe Window 1 to 4 Registers */
 #define RCAPnSAL(n) (0x800 + (0x20 * (n)))
@@ -97,8 +107,6 @@
 #define LINK_UP_FIELD		(0x3F << 20)
 #define LINK_RETRAIN_BIT	BIT(27)
 
-#define RC_TO_EP_DELAY		15
-
 #define NPCM_MSI_MAX		32
 
 struct npcm_pcie {
@@ -112,148 +120,141 @@ struct npcm_pcie {
 	struct irq_domain 	*msi_domain;
 	struct reset_control	*reset;
 	struct regmap		*gcr_regmap;
+	int 			rst_ep_gpio;
 	DECLARE_BITMAP(msi_irq_in_use, NPCM_MSI_MAX);
 };
 
-static void npcm_pcie_destroy_msi(unsigned int irq)
+static void npcm_msi_isr(struct irq_desc *desc)
 {
-	struct msi_desc *msi = irq_get_msi_desc(irq);
-	struct npcm_pcie *pcie = msi_desc_to_pci_sysdata(msi);
-	struct irq_data *d = irq_get_irq_data(irq);
-	irq_hw_number_t hwirq = irqd_to_hwirq(d);
-		
-	if (!test_bit(hwirq, pcie->msi_irq_in_use))
-		dev_err(pcie->dev, "Trying to free unused MSI#%d\n", irq);
-	else
-		clear_bit(hwirq, pcie->msi_irq_in_use);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct npcm_pcie *pcie = irq_desc_get_handler_data(desc);
+	unsigned long status, virq, idx;
+
+	chained_irq_enter(chip, desc);
+	spin_lock(&pcie->used_msi_lock);
+
+	status = ioread32(pcie->reg_base + PCIERC_ISTATUS_MSI_ADDR);
+	for_each_set_bit(idx, &status, 32) {
+		virq = irq_find_mapping(pcie->msi_domain, idx);
+		generic_handle_irq(virq);
+	}
+
+	spin_unlock(&pcie->used_msi_lock);
+	chained_irq_exit(chip, desc);
 }
 
-static int npcm_pcie_assign_msi(struct npcm_pcie *pcie)
+static void npcm_ack(struct irq_data *d)
 {
-	int pos;
-
-	pos = find_first_zero_bit(pcie->msi_irq_in_use, NPCM_MSI_MAX);
-	if (pos < NPCM_MSI_MAX)
-		set_bit(pos, pcie->msi_irq_in_use);
-	else
-		return -ENOSPC;
-
-	return pos;
-}
-
-void npcm_msi_teardown_irq(struct msi_controller *chip,
-				    unsigned int irq)
-{
-	npcm_pcie_destroy_msi(irq);
-	irq_dispose_mapping(irq);
-}
-
-int npcm_pcie_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
-			    struct msi_desc *desc)
-{
-	struct npcm_pcie *pcie = pdev->bus->sysdata;
-	unsigned int irq, id;
-	struct msi_msg msg;
-	int hwirq;
-
-	hwirq = npcm_pcie_assign_msi(pcie);
-	if (hwirq < 0)
-		return hwirq;
-
-	irq = irq_create_mapping(pcie->msi_domain, hwirq);
-	if (!irq)
-		return -EINVAL;
-
-	irq_set_msi_desc(irq, desc);
-
-	msg.address_hi = 0x0;
-	msg.address_lo = (pcie->bar0 + IMSI_ADDR) & 0xfffffff0;
-
-	id = read_cpuid_id();
-	msg.data = (id << NPCM_CORE_SELECT) | hwirq;
-
-	pci_write_msi_msg(irq, &msg);
-
-	return 0;
-}
-
-/* MSI Chip Descriptor */
-static struct msi_controller npcm_pcie_msi_chip = {
-	.setup_irqs = NULL,
-	.setup_irq = npcm_pcie_msi_setup_irq,
-	.teardown_irq = npcm_msi_teardown_irq,
-};
-
-static struct irq_chip npcm_msi_irq_chip = {
-	.name = "NPCM PCI-MSI",
-	.irq_enable = pci_msi_unmask_irq,
-	.irq_disable = pci_msi_mask_irq,
-	.irq_mask = pci_msi_mask_irq,
-	.irq_unmask = pci_msi_unmask_irq,
-};
-
-static int npcm_pcie_msi_map(struct irq_domain *domain, unsigned int irq,
-			     irq_hw_number_t hwirq)
-{
-	irq_set_chip_and_handler(irq, &npcm_msi_irq_chip, handle_simple_irq);
-	irq_set_chip_data(irq, domain->host_data);
-
-	return 0;
-}
-
-static const struct irq_domain_ops msi_domain_ops = {
-	.map = npcm_pcie_msi_map,
-};
-
-static irqreturn_t npcm_msi_handler(int irq, void *data)
-{
-	struct npcm_pcie *pcie = (struct npcm_pcie *)data;
-	unsigned int dt_irq;
-	unsigned int index;
-	unsigned long status;
+	struct npcm_pcie *pcie = d->chip_data;
+	u32 bit = BIT(d->hwirq % 32);
 	u32 global_pcie_status = ioread32(pcie->reg_base + PCIERC_ISTATUS_LOCAL_ADDR);
 
-	if (global_pcie_status & PCIERC_ISTATUS_LOCAL_MSI_BIT)
-	{
-		status = ioread32(pcie->reg_base + PCIERC_ISTATUS_MSI_ADDR);
-		if (!status)
-			return IRQ_HANDLED;
-		do {
-			index = find_first_bit(&status, 32);
-			iowrite32(1 << index, pcie->reg_base + PCIERC_ISTATUS_MSI_ADDR);
-
-			dt_irq = irq_find_mapping(pcie->msi_domain, index);
-			if (test_bit(index, pcie->msi_irq_in_use))
-				generic_handle_irq(dt_irq);
-			else
-				dev_info(pcie->dev, "unhandled MSI\n");
-
-			status = ioread32(pcie->reg_base + PCIERC_ISTATUS_MSI_ADDR);
-
-		} while (status);
-	}
+	iowrite32(bit, pcie->reg_base + PCIERC_ISTATUS_MSI_ADDR);
 	iowrite32(global_pcie_status, pcie->reg_base + PCIERC_ISTATUS_LOCAL_ADDR);
-
-	return IRQ_HANDLED;
 }
 
-static int npcm_pcie_init_irq_domain(struct npcm_pcie *pcie)
+static void npcm_mask(struct irq_data *d)
 {
-	struct device *dev = pcie->dev;
-	struct device_node *node = dev->of_node;
+	return;
+}
 
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		pcie->msi_domain = irq_domain_add_linear(node, NPCM_MSI_MAX,
-							 &msi_domain_ops,
-							 &npcm_pcie_msi_chip);
-		if (!pcie->msi_domain) {
-			dev_err(dev, "Failed to get a MSI IRQ domain\n");
-			return PTR_ERR(pcie->msi_domain);
-		}
+static void npcm_unmask(struct irq_data *d)
+{
+	return;
+}
+
+static int npcm_set_affinity(struct irq_data *d, const struct cpumask *mask,
+			      bool force)
+{
+	return -EINVAL;
+}
+
+static void npcm_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
+{
+	struct npcm_pcie *pcie = d->chip_data;
+	int id;
+
+	msg->address_hi = 0x0;
+	msg->address_lo = (pcie->bar0 + IMSI_ADDR) & 0xfffffff0;
+	id = read_cpuid_id();
+	msg->data = (id << NPCM_CORE_SELECT) | d->hwirq;
+}
+
+static struct irq_chip npcm_chip = {
+	.irq_ack		= npcm_ack,
+	.irq_mask		= npcm_mask,
+	.irq_unmask		= npcm_unmask,
+	.irq_set_affinity	= npcm_set_affinity,
+	.irq_compose_msi_msg	= npcm_compose_msi_msg,
+};
+
+static void msi_ack(struct irq_data *d)
+{
+	irq_chip_ack_parent(d);
+}
+
+static void msi_mask(struct irq_data *d)
+{
+	pci_msi_mask_irq(d);
+	irq_chip_mask_parent(d);
+}
+
+static void msi_unmask(struct irq_data *d)
+{
+	pci_msi_unmask_irq(d);
+	irq_chip_unmask_parent(d);
+}
+
+static struct irq_chip msi_chip = {
+	.name = "MSI",
+	.irq_ack = msi_ack,
+	.irq_mask = msi_mask,
+	.irq_unmask = msi_unmask,
+};
+
+static struct msi_domain_info msi_dom_info = {
+	.flags = MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+		MSI_FLAG_MULTI_PCI_MSI,
+	.chip	= &msi_chip,
+};
+
+static int npcm_irq_domain_alloc(struct irq_domain *dom, unsigned int virq,
+				  unsigned int nr_irqs, void *args)
+{
+	struct npcm_pcie *pcie = dom->host_data;
+	unsigned long flags;
+	int pos;
+
+	spin_lock_irqsave(&pcie->used_msi_lock, flags);
+	pos = find_first_zero_bit(pcie->msi_irq_in_use, NPCM_MSI_MAX);
+	if (pos >= NPCM_MSI_MAX) {
+		spin_unlock_irqrestore(&pcie->used_msi_lock, flags);
+		return -ENOSPC;
 	}
+	__set_bit(pos, pcie->msi_irq_in_use);
+	spin_unlock_irqrestore(&pcie->used_msi_lock, flags);
+	irq_domain_set_info(dom, virq, pos, &npcm_chip,
+			pcie, handle_edge_irq, NULL, NULL);
 
 	return 0;
 }
+
+static void npcm_irq_domain_free(struct irq_domain *dom, unsigned int virq,
+				  unsigned int nr_irqs)
+{
+	unsigned long flags;
+	struct irq_data *d = irq_domain_get_irq_data(dom, virq);
+	struct npcm_pcie *pcie = d->chip_data;
+
+	spin_lock_irqsave(&pcie->used_msi_lock, flags);
+	__clear_bit(d->hwirq, pcie->msi_irq_in_use);
+	spin_unlock_irqrestore(&pcie->used_msi_lock, flags);
+}
+
+static const struct irq_domain_ops dom_ops = {
+	.alloc	= npcm_irq_domain_alloc,
+	.free	= npcm_irq_domain_free,
+};
 
 static int npcm_pcie_rc_device_connected(struct npcm_pcie *pcie)
 {
@@ -291,8 +292,8 @@ static void npcm_initialize_as_root_complex(struct npcm_pcie *pcie)
 	iowrite32(PCIERC_CFG_NO_SLVERR, pcie->reg_base + PCIERC_AXI_ERROR_REPORT);
 }
 
-static int set_translation_window(void __iomem * config_address_base,dma_addr_t *source_addr,
-		u32 size,dma_addr_t *dest_addr,u8 win_type,u8 target)
+static int set_translation_window(void __iomem * config_address_base,dma_addr_t source_addr,
+		u32 size,dma_addr_t dest_addr,u8 win_type,u8 target)
 {
 	u8 win_size = 11 ;
 	u32 val;
@@ -321,42 +322,8 @@ static int set_translation_window(void __iomem * config_address_base,dma_addr_t 
 #endif
 	val = (win_type << PCI_RC_ATTR_TRSF_PARAM_POS) + (target << PCI_RC_ATTR_TRSL_ID_POS);
 	writel(val, config_address_base + 0x10);
+
 	return 0;
-}
-
-static int npcm_msi_init(struct npcm_pcie *pcie)
-{
-	struct device *dev = pcie->dev;
-	struct device_node *node = dev->of_node;
-	int ret;
-
-	/* enable MSI interrupt  */
-	iowrite32(PCIERC_ISTATUS_LOCAL_MSI_BIT, pcie->reg_base + PCIERC_IMASK_LOCAL_ADDR);
-
-	set_translation_window((void __iomem *)pcie->reg_base + RCPA0SAL, 0, SZ_512M , 0,
-			        PLDA_XPRESS_RICH_MEMORY_WINDOW ,PLDA_XPRESS_RICH_TARGET_AXI_MASTER) ;
-
-	pcie->irq = irq_of_parse_and_map(node, 0);
-	if (!pcie->irq) {
-		dev_err(dev, "failed to map irq\n");
-		return -ENODEV;	
-	}
-
-	ret = devm_request_irq(dev, pcie->irq, npcm_msi_handler,
-			       IRQF_SHARED | IRQF_NO_THREAD, "npcm-pcie-rc",
-			       pcie);
-	if (ret) {
-		dev_err(dev, "unable to request irq %d\n", pcie->irq);
-		return ret;
-	}
-	
-	ret = npcm_pcie_init_irq_domain(pcie);
-	if (ret) {
-		dev_err(dev, "Failed creating IRQ Domain\n");
-		return ret;
-	}
-
-	return ret;
 }
 
 static void npcm_pcie_rc_init_config_window(struct npcm_pcie *pcie)
@@ -406,6 +373,15 @@ static void npcm_pcie_rc_init_config_window(struct npcm_pcie *pcie)
 		start_win_num++;
 	}
 
+	if (of_pci_dma_range_parser_init(&parser, dev->of_node) < 0)
+		return;
+	if (of_pci_range_parser_one(&parser, &range) == NULL)
+		return;
+
+	set_translation_window((void __iomem *)pcie->reg_base + RCPA1SAL,
+			       range.cpu_addr, range.size , range.pci_addr,
+			       PLDA_XPRESS_RICH_MEMORY_WINDOW,
+			       PLDA_XPRESS_RICH_TARGET_AXI_MASTER);
 }
 
 static int npcm_config_read(struct pci_bus *bus, 
@@ -490,12 +466,46 @@ static struct pci_ops npcm_pcie_ops = {
 	
 };
 
+static int npcm_pcie_init(struct device *dev, struct npcm_pcie *pcie)
+{
+	struct device_node *np = dev->of_node;
+	int ret = -1;
+
+	pcie->rst_ep_gpio = of_get_named_gpio(np, "npcm-pci-ep-rst", 0);
+	if (pcie->rst_ep_gpio < 0) {
+		dev_warn(dev, "GPIO pci-ep-rst not found in device tree\n");
+	} else {
+		ret = devm_gpio_request_one(dev, pcie->rst_ep_gpio,
+					    GPIOF_OUT_INIT_LOW, "rst-ep-pci");
+		if (ret) {
+			dev_err(dev, "%d unable to get reset ep GPIO\n", ret);
+			return ret;
+		}
+		gpio_set_value(pcie->rst_ep_gpio, 0);
+	}
+
+	npcm_initialize_as_root_complex(pcie);
+	npcm_pcie_rc_init_config_window(pcie);
+	
+	set_translation_window((void __iomem *)pcie->reg_base + RCPA0SAL, 0, SZ_256M , 0,
+				PLDA_XPRESS_RICH_MEMORY_WINDOW ,PLDA_XPRESS_RICH_TARGET_AXI_MASTER);
+
+	if (!ret) {
+		gpio_set_value(pcie->rst_ep_gpio, 1);
+		gpio_free(pcie->rst_ep_gpio);
+	}
+
+	return 0;
+}
+
 static int npcm_pcie_probe(struct platform_device *pdev)
 {
+	struct irq_domain *msi_dom, *irq_dom;
 	struct device *dev = &pdev->dev;
+	struct fwnode_handle *fwnode = of_node_to_fwnode(dev->of_node);
 	struct pci_host_bridge *bridge;
 	struct npcm_pcie *pcie;
-	int virq;
+	int virq, ret;	
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(struct npcm_pcie));
 	if (!bridge)
@@ -530,8 +540,11 @@ static int npcm_pcie_probe(struct platform_device *pdev)
 		return PTR_ERR(pcie->gcr_regmap);
 	}
 
-	npcm_initialize_as_root_complex(pcie);
-	npcm_pcie_rc_init_config_window(pcie);
+	ret = npcm_pcie_init(dev, pcie);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed npcm_pcie_init function\n");
+		return ret;
+	}
 
 	spin_lock_init(&pcie->used_msi_lock);
 
@@ -539,9 +552,24 @@ static int npcm_pcie_probe(struct platform_device *pdev)
 	bridge->ops = &npcm_pcie_ops;
 
 #ifdef CONFIG_PCI_MSI
-	npcm_msi_init(pcie);
-	npcm_pcie_msi_chip.dev = dev;
-	bridge->msi = &npcm_pcie_msi_chip;
+	iowrite32(PCIERC_ISTATUS_LOCAL_MSI_BIT , pcie->reg_base + PCIERC_IMASK_LOCAL_ADDR);
+
+	irq_dom = irq_domain_create_linear(fwnode, NPCM_MSI_MAX, &dom_ops, pcie);
+	if (!irq_dom) {
+		dev_err(dev, "Failed to create IRQ domain\n");
+		return -ENOMEM;
+	}
+
+	msi_dom = pci_msi_create_irq_domain(fwnode, &msi_dom_info, irq_dom);
+	if (!msi_dom) {
+		dev_err(dev, "Failed to create MSI domain\n");
+		irq_domain_remove(irq_dom);
+		return -ENOMEM;
+	}
+
+	pcie->msi_domain = irq_dom;
+	spin_lock_init(&pcie->used_msi_lock);
+	irq_set_chained_handler_and_data(virq, npcm_msi_isr, pcie);
 #endif
 	return pci_host_probe(bridge);
 
